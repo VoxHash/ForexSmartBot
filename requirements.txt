@@ -1,2 +1,0 @@
-MetaTrader5==5.0.33
-pandas==1.3.2
