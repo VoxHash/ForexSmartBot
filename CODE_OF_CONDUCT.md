@@ -102,14 +102,13 @@ For answers to common questions about this code of conduct, see the FAQ at https
 
 ### Project Maintainers
 
-- **Primary Contact**: [Your Name] - [your.email@example.com]
+- **Primary Contact**: VoxHash - [contact@voxhash.com]
 - **GitHub**: [@voxhash](https://github.com/voxhash)
-- **Discord**: [Your Discord Username]
+- **Discord**: @VoxHash
 
 ### Community Moderators
 
-- **Moderator 1**: [Moderator Name] - [moderator1@example.com]
-- **Moderator 2**: [Moderator Name] - [moderator2@example.com]
+- **Moderator 1**: Ronin
 
 ### Reporting Process
 
