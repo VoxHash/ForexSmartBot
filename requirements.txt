@@ -1,0 +1,9 @@
+PyQt6>=6.7.0
+pydantic>=2.9.0
+python-dotenv>=1.0.0
+pandas>=2.2.0
+numpy>=1.26.0
+yfinance>=0.2.40
+pyzmq>=26.0.0
+matplotlib>=3.9.0
+darkdetect>=0.8.0
