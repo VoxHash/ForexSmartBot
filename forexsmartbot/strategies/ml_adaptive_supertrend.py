@@ -184,25 +184,37 @@ class MLAdaptiveSuperTrend(IStrategy):
         
         # Only trade on STRONG trend changes with multiple confirmations
         if direction != prev_direction:
-            # Wait for strong confirmation - price must be significantly above/below SuperTrend
+            # Wait for strong confirmation: price clearly above/below the SuperTrend line
             atr = float(row.get('ATR', 0))
             if atr > 0:
                 price_distance = abs(current_price - supertrend) / atr
                 
-                # Balanced thresholds for good entries
-                if direction > 0 and current_price > supertrend and price_distance > 0.3:
-                    # Additional confirmation: price should be rising
+                # More aggressive thresholds to generate signals on trend change
+                if direction > 0 and current_price > supertrend and price_distance > 0.1:
+                    # Additional confirmation: positive momentum
                     price_change = current_price - float(prev['Close'])
                     if price_change > 0:
                         return 1  # Buy signal
-                elif direction < 0 and current_price < supertrend and price_distance > 0.3:
-                    # Additional confirmation: price should be falling
+                elif direction < 0 and current_price < supertrend and price_distance > 0.1:
+                    # Additional confirmation: negative momentum
                     price_change = current_price - float(prev['Close'])
                     if price_change < 0:
                         return -1  # Sell signal
-        
-        # No additional signals - only trade on very clear trend changes
-                
+
+        # NEW: Allow signals on confirmed price cross even without Direction change
+        # Rules: price crosses SuperTrend line + sufficient distance/ATR + momentum confirmation
+        atr = float(row.get('ATR', 0))
+        if atr > 0:
+            price_distance = abs(current_price - supertrend) / atr
+            price_change = current_price - float(prev['Close'])
+            
+            # Confirmed bullish cross
+            if current_price > supertrend and direction > 0 and price_distance > 0.1 and price_change > 0:
+                return 1
+            # Confirmed bearish cross
+            if current_price < supertrend and direction < 0 and price_distance > 0.1 and price_change < 0:
+                return -1
+
         return 0  # Hold
         
     def volatility(self, df: pd.DataFrame) -> Optional[float]:

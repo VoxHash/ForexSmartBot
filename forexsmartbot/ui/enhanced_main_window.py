@@ -1049,7 +1049,7 @@ class EnhancedMainWindow(QMainWindow):
             # Start real-time signal generation timer (less frequent to prevent freezing)
             self.signal_timer = QTimer()
             self.signal_timer.timeout.connect(lambda: self.generate_signals(strategy, symbols))
-            self.signal_timer.start(600000)  # Check every 10 minutes (reduced frequency)
+            self.signal_timer.start(300000)  # Check every 5 minutes (more frequent)
             
             # Start monitoring timer (less frequent)
             self.monitor_timer = QTimer()
@@ -1081,7 +1081,7 @@ class EnhancedMainWindow(QMainWindow):
                     current_time = datetime.now()
                     if symbol in self.signal_cooldown:
                         time_since_last = (current_time - self.signal_cooldown[symbol]).total_seconds()
-                        if time_since_last < 900:  # 15 minute cooldown
+                        if time_since_last < 600:  # 10 minute cooldown
                             continue
                     
                     # Get current price (simplified to prevent blocking)
