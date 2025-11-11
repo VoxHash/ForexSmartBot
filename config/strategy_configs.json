@@ -1,0 +1,46 @@
+{
+  "LSTM_Strategy": {
+    "lookback_period": 60,
+    "sequence_length": 20,
+    "lstm_units": 50,
+    "epochs": 50,
+    "batch_size": 32,
+    "prediction_threshold": 0.02,
+    "min_samples": 200
+  },
+  "SVM_Strategy": {
+    "lookback_period": 50,
+    "kernel": "rbf",
+    "C": 1.0,
+    "gamma": "scale",
+    "min_samples": 100
+  },
+  "Ensemble_ML_Strategy": {
+    "lookback_period": 50,
+    "n_estimators": 100,
+    "max_depth": 10,
+    "learning_rate": 0.1,
+    "min_samples": 100
+  },
+  "Transformer_Strategy": {
+    "lookback_period": 60,
+    "sequence_length": 20,
+    "model_name": "distilbert-base-uncased",
+    "min_samples": 200
+  },
+  "RL_Strategy": {
+    "lookback_period": 100,
+    "algorithm": "DQN",
+    "min_samples": 500,
+    "training_steps": 10000
+  },
+  "Multi_Timeframe": {
+    "timeframes": ["1h", "4h", "1d"],
+    "timeframe_weights": {
+      "1h": 0.3,
+      "4h": 0.3,
+      "1d": 0.4
+    }
+  }
+}
+

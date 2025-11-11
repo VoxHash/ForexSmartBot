@@ -1,0 +1,11 @@
+{
+  "symbol": "EURUSD=X",
+  "start_date": "2023-01-01",
+  "end_date": "2023-12-31",
+  "initial_balance": 10000.0,
+  "min_sharpe": 0.3,
+  "max_drawdown": 0.5,
+  "min_trades": 5,
+  "min_win_rate": 0.3
+}
+

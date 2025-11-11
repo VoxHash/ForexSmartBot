@@ -1,0 +1,36 @@
+{
+  "genetic_algorithm": {
+    "population_size": 50,
+    "generations": 30,
+    "mutation_rate": 0.2,
+    "crossover_rate": 0.7,
+    "tournament_size": 3
+  },
+  "hyperparameter_optimization": {
+    "n_trials": 100,
+    "direction": "maximize",
+    "sampler": "TPE",
+    "pruner": "MedianPruner"
+  },
+  "walk_forward": {
+    "train_period_days": 252,
+    "test_period_days": 63,
+    "step_size_days": 21,
+    "min_train_samples": 200
+  },
+  "monte_carlo": {
+    "n_simulations": 1000,
+    "confidence_level": 0.95,
+    "stress_test_scenarios": [0.5, 1.0, 1.5, 2.0]
+  },
+  "parameter_sensitivity": {
+    "n_points": 10,
+    "method": "linear",
+    "sampling_methods": {
+      "linear": "Uniform sampling",
+      "log": "Logarithmic sampling",
+      "random": "Random sampling"
+    }
+  }
+}
+

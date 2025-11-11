@@ -1,0 +1,95 @@
+name: Strategy Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at midnight UTC
+    - cron: '0 0 * * *'
+
+jobs:
+  test-strategies:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Validate installation
+      run: |
+        python scripts/validate_installation.py
+    
+    - name: Run strategy tests
+      run: |
+        python forexsmartbot/testing/ci_cd_pipeline.py \
+          --config .github/test_config.json \
+          --output test_report.txt \
+          --json test_results.json
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: |
+          test_report.txt
+          test_results.json
+    
+    - name: Check test results
+      run: |
+        python forexsmartbot/testing/ci_cd_pipeline.py \
+          --strategies SMA_Crossover RSI_Reversion \
+          --output /dev/null
+        exit_code=$?
+        if [ $exit_code -ne 0 ]; then
+          echo "Some strategies failed tests"
+          exit 1
+        fi
+
+  benchmark-strategies:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Benchmark strategies
+      run: |
+        python scripts/benchmark_strategies.py \
+          --symbol EURUSD=X \
+          --start 2023-01-01 \
+          --end 2023-12-31 \
+          --output benchmark_results.json \
+          --sort-by sharpe
+    
+    - name: Upload benchmarks
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: benchmark_results.json
+

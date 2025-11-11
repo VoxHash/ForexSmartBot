@@ -1,0 +1,254 @@
+{
+  "5dc559b7-96ad-42e7-b029-a0e96c908196": {
+    "strategy_id": "5dc559b7-96ad-42e7-b029-a0e96c908196",
+    "name": "Mean_Reversion",
+    "description": "Built-in Mean_Reversion strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.814831",
+    "updated_at": "2025-11-11T13:20:31.814833",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "21015109-08b7-420c-826b-d08e0181d1c7": {
+    "strategy_id": "21015109-08b7-420c-826b-d08e0181d1c7",
+    "name": "SMA_Crossover",
+    "description": "Built-in SMA_Crossover strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.815395",
+    "updated_at": "2025-11-11T13:20:31.815396",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "8ee0aeb9-cd06-4cc4-a7b9-b67cb1aae0da": {
+    "strategy_id": "8ee0aeb9-cd06-4cc4-a7b9-b67cb1aae0da",
+    "name": "Scalping_MA",
+    "description": "Built-in Scalping_MA strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.815961",
+    "updated_at": "2025-11-11T13:20:31.815962",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "ef59ebd1-773c-49d9-bdc9-cd5e6e1d07aa": {
+    "strategy_id": "ef59ebd1-773c-49d9-bdc9-cd5e6e1d07aa",
+    "name": "RSI_Reversion",
+    "description": "Built-in RSI_Reversion strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.816546",
+    "updated_at": "2025-11-11T13:20:31.816547",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "81cbe93b-e30b-4ddb-ab01-9641cb2daf23": {
+    "strategy_id": "81cbe93b-e30b-4ddb-ab01-9641cb2daf23",
+    "name": "BreakoutATR",
+    "description": "Built-in BreakoutATR strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.817049",
+    "updated_at": "2025-11-11T13:20:31.817050",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "9d2ee487-eb19-4aad-9f23-13e88ec4386b": {
+    "strategy_id": "9d2ee487-eb19-4aad-9f23-13e88ec4386b",
+    "name": "Momentum_Breakout",
+    "description": "Built-in Momentum_Breakout strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.817596",
+    "updated_at": "2025-11-11T13:20:31.817596",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "842e43cf-fe2f-4694-aa2e-78d34e32b529": {
+    "strategy_id": "842e43cf-fe2f-4694-aa2e-78d34e32b529",
+    "name": "News_Trading",
+    "description": "Built-in News_Trading strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.818179",
+    "updated_at": "2025-11-11T13:20:31.818180",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "648b9f6d-5920-44d0-8145-97dcb9b9ccd2": {
+    "strategy_id": "648b9f6d-5920-44d0-8145-97dcb9b9ccd2",
+    "name": "ML_Adaptive_SuperTrend",
+    "description": "Built-in ML_Adaptive_SuperTrend strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.818726",
+    "updated_at": "2025-11-11T13:20:31.818727",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "1402530a-4bf7-4a4f-9db7-879febfebfba": {
+    "strategy_id": "1402530a-4bf7-4a4f-9db7-879febfebfba",
+    "name": "Adaptive_Trend_Flow",
+    "description": "Built-in Adaptive_Trend_Flow strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.819453",
+    "updated_at": "2025-11-11T13:20:31.819454",
+    "download_count": 1,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "e4f10c49-67d0-4204-a567-0444c0b36f1d": {
+    "strategy_id": "e4f10c49-67d0-4204-a567-0444c0b36f1d",
+    "name": "LSTM_Strategy",
+    "description": "Built-in LSTM_Strategy strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.820046",
+    "updated_at": "2025-11-11T13:20:31.820047",
+    "download_count": 1,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "7ec103fc-d903-4da3-bf23-3a08427c93b6": {
+    "strategy_id": "7ec103fc-d903-4da3-bf23-3a08427c93b6",
+    "name": "SVM_Strategy",
+    "description": "Built-in SVM_Strategy strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.820650",
+    "updated_at": "2025-11-11T13:20:31.820651",
+    "download_count": 1,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "d506724b-d603-4cf4-82a0-7d9223c0168e": {
+    "strategy_id": "d506724b-d603-4cf4-82a0-7d9223c0168e",
+    "name": "Ensemble_ML_Strategy",
+    "description": "Built-in Ensemble_ML_Strategy strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.821298",
+    "updated_at": "2025-11-11T13:20:31.821298",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "a423563d-d8e4-47d6-aa4c-f0d57410d684": {
+    "strategy_id": "a423563d-d8e4-47d6-aa4c-f0d57410d684",
+    "name": "Transformer_Strategy",
+    "description": "Built-in Transformer_Strategy strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.821951",
+    "updated_at": "2025-11-11T13:20:31.821951",
+    "download_count": 0,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  },
+  "08848c96-f254-4854-88d0-a9ff2022207b": {
+    "strategy_id": "08848c96-f254-4854-88d0-a9ff2022207b",
+    "name": "RL_Strategy",
+    "description": "Built-in RL_Strategy strategy",
+    "author": "ForexSmartBot",
+    "version": "1.0.0",
+    "category": "Built-in",
+    "tags": [
+      "built-in",
+      "default"
+    ],
+    "created_at": "2025-11-11T13:20:31.822673",
+    "updated_at": "2025-11-11T13:20:31.822673",
+    "download_count": 1,
+    "rating": 0.0,
+    "rating_count": 0,
+    "file_path": null
+  }
+}

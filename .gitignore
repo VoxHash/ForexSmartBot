@@ -1,0 +1,242 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ForexSmartBot specific
+*.db
+*.sqlite
+*.sqlite3
+settings.json
+logs/
+data/
+backups/
+temp/
+*.log
+
+# Trading data
+trades_*.csv
+trades_*.json
+trades_*.xlsx
+backtest_*.json
+strategy_test_report.md
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+*.lnk
+
+# macOS
+*.dmg
+
+# Linux
+*.deb
+*.rpm
+*.tar.gz
+*.AppImage
+
+# Build artifacts
+build/
+dist/
+*.exe
+*.msi
+*.dmg
+*.deb
+*.rpm
+*.tar.gz
+*.AppImage
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Project-specific temporary files
+*_SUMMARY.md
+*_FIXES*.md
+*_VERIFICATION*.md
+*_CONFIGURATION*.md
+*_SYSTEM*.md
+*_CONSISTENCY*.md
+*_CRITICAL*.md
+*_FINAL*.md
+*_NOTES*.md
+*_ENHANCED*.md
+*_COMPLETE*.md
+*_PRODUCTION*.md
+*_NEXT*.md
+*_IMPROVEMENTS*.md
+*_ERROR*.md
+*_CRASH*.md
+*_BACKTEST*.md
+*_STRATEGY*.md
+*_EXPORT*.md
+*_LANGUAGE*.md
+*_POWERSHELL*.md
+*_PROJECT*.md
+*_IMPLEMENTATION*.md
+*_DOCUMENTATION*.md
+*_COMPLETION*.md
+*_FIX*.md
+*_PNL*.md
+*_SELECTION*.md
+
+# Temporary Python scripts
+test_*.py
+update_*.py
+add_*.py
+fix_*.py
+verify_*.py
+cleanup_*.py
+*_test.py
+*_temp.py
+*_temp_*.py
+
+# Build scripts (keep only essential ones)
+build_*.py
+build_*.sh
+build_*.bat
+!build_simple.py
+
+# Documentation duplicates
+docs/wiki/placeholder.md
