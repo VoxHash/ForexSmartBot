@@ -20,13 +20,15 @@ except (ImportError, OSError, RuntimeError) as e:
     warnings.warn(f"Transformers/torch not available (DLL loading may have failed): {e}")
 
 from sklearn.preprocessing import StandardScaler
+from ..utils.gpu_utils import get_gpu_manager
 
 
 class TransformerStrategy(IStrategy):
     """Transformer-based trading strategy using BERT/GPT-style models."""
     
     def __init__(self, lookback_period: int = 60, sequence_length: int = 20,
-                 model_name: str = "distilbert-base-uncased", min_samples: int = 200):
+                 model_name: str = "distilbert-base-uncased", min_samples: int = 200,
+                 use_gpu: bool = True):
         if not TRANSFORMERS_AVAILABLE:
             raise ImportError("Transformers library is required. Install with: pip install transformers torch")
         
@@ -39,6 +41,10 @@ class TransformerStrategy(IStrategy):
         self._tokenizer = None
         self._scaler = StandardScaler()
         self._is_trained = False
+        
+        # GPU support
+        self._gpu_manager = get_gpu_manager(use_gpu=use_gpu)
+        self._device = self._gpu_manager.get_device() if TRANSFORMERS_AVAILABLE else None
         
     @property
     def name(self) -> str:

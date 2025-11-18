@@ -22,6 +22,9 @@ deap>=1.4.1
 scipy>=1.11.0
 seaborn>=0.13.0
 numba>=0.59.0
+# GPU acceleration (optional - requires CUDA toolkit)
+# cupy-cuda12x>=12.0.0  # For CUDA 12.x (uncomment if you have CUDA 12.x)
+# cupy-cuda11x>=11.0.0  # For CUDA 11.x (uncomment if you have CUDA 11.x)
 flask>=3.0.0
 flask-cors>=4.0.0
 flask-limiter>=3.5.0

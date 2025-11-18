@@ -582,5 +582,22 @@ class OptimizationDialog(QDialog):
             QMessageBox.critical(self, "Error", result['error'])
         else:
             import json
-            self.results_text.setText(json.dumps(result, indent=2))
+            import numpy as np
+            
+            # Custom JSON encoder to handle numpy arrays
+            class NumpyEncoder(json.JSONEncoder):
+                def default(self, obj):
+                    if isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    elif isinstance(obj, (np.integer, np.floating)):
+                        return obj.item()
+                    elif isinstance(obj, np.bool_):
+                        return bool(obj)
+                    return super().default(obj)
+            
+            try:
+                self.results_text.setText(json.dumps(result, indent=2, cls=NumpyEncoder))
+            except (TypeError, ValueError) as e:
+                # Fallback: convert to string representation
+                self.results_text.setText(str(result))
 

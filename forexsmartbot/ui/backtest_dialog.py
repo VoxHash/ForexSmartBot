@@ -18,6 +18,9 @@ from ..strategies import get_strategy
 from ..adapters.data import YFinanceProvider, CSVProvider, MultiProvider
 from ..core.portfolio import Portfolio
 from ..core.risk_engine import RiskEngine, RiskConfig
+from ..services.gpu_backtest import GPUBacktestService
+from ..services.backtest import BacktestService
+from ..utils.gpu_utils import get_gpu_manager, GPUManager
 
 
 class BacktestWorker(QThread):
@@ -59,6 +62,77 @@ class BacktestWorker(QThread):
             
             # Use MultiProvider for better data source handling
             data_provider = MultiProvider()
+            
+            # Check if GPU is available and use GPU backtest if possible
+            gpu_manager = get_gpu_manager()
+            use_gpu = gpu_manager.is_gpu_available()
+            
+            if use_gpu:
+                self.log_updated.emit("GPU acceleration available - attempting GPU backtest")
+                try:
+                    # Extract strategy name
+                    strategy_name = self.config['strategy']
+                    for emoji in ['🟢 ', '🟡 ', '🔴 ', '⚪ ']:
+                        if emoji in strategy_name:
+                            strategy_name = strategy_name.replace(emoji, '')
+                    if ' (' in strategy_name:
+                        strategy_name = strategy_name.split(' (')[0]
+                    
+                    # Get strategy
+                    strategy = get_strategy(strategy_name)
+                    if not strategy:
+                        self.log_updated.emit(f"Strategy {strategy_name} not found, using CPU")
+                        use_gpu = False
+                    else:
+                        # Set strategy parameters
+                        if hasattr(strategy, 'set_params'):
+                            if strategy_name == 'SMA_Crossover':
+                                strategy.set_params(fast_period=10, slow_period=20)
+                            elif strategy_name == 'BreakoutATR':
+                                strategy.set_params(lookback_period=20, atr_multiplier=2.0)
+                            elif strategy_name == 'RSI_Reversion':
+                                strategy.set_params(rsi_period=14, oversold=30, overbought=70)
+                        
+                        # Create risk config
+                        risk_config = RiskConfig(
+                            base_risk_pct=self.config['risk_pct'],
+                            max_risk_pct=self.config['max_risk_pct'],
+                            daily_risk_cap=self.config['daily_risk_cap'],
+                            max_drawdown_pct=self.config['max_drawdown_pct']
+                        )
+                        
+                        # Run GPU backtest
+                        self.log_updated.emit("Running GPU-accelerated backtest...")
+                        self.progress_updated.emit(40)
+                        
+                        symbol = f"{self.config['symbol']}=X" if '=X' not in self.config['symbol'] else self.config['symbol']
+                        gpu_backtest = GPUBacktestService(data_provider, use_gpu=True)
+                        results = gpu_backtest.run_backtest(
+                            strategy=strategy,
+                            symbol=symbol,
+                            start_date=self.config['start_date'],
+                            end_date=self.config['end_date'],
+                            initial_balance=self.config['initial_balance'],
+                            risk_config=risk_config
+                        )
+                        
+                        if 'error' not in results:
+                            self.log_updated.emit("GPU backtest completed successfully!")
+                            self.progress_updated.emit(90)
+                            self.backtest_completed.emit(results)
+                            return
+                        else:
+                            self.log_updated.emit(f"GPU backtest error: {results.get('error', 'Unknown')}, falling back to CPU")
+                            use_gpu = False
+                            
+                except Exception as e:
+                    self.log_updated.emit(f"GPU backtest failed: {str(e)}, falling back to CPU")
+                    use_gpu = False
+            
+            # Fallback to CPU backtest
+            if not use_gpu:
+                self.log_updated.emit("Using CPU backtest service")
+            
             df = data_provider.get_data(
                 f"{self.config['symbol']}=X",
                 self.config['start_date'],

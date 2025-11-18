@@ -21,6 +21,7 @@ except (ImportError, OSError, RuntimeError) as e:
     warnings.warn(f"TensorFlow not available (DLL loading may have failed): {e}")
 
 from sklearn.preprocessing import MinMaxScaler
+from ..utils.gpu_utils import get_gpu_manager
 
 
 class LSTMStrategy(IStrategy):
@@ -28,7 +29,8 @@ class LSTMStrategy(IStrategy):
     
     def __init__(self, lookback_period: int = 60, sequence_length: int = 20,
                  lstm_units: int = 50, epochs: int = 50, batch_size: int = 32,
-                 prediction_threshold: float = 0.02, min_samples: int = 200):
+                 prediction_threshold: float = 0.02, min_samples: int = 200,
+                 use_gpu: bool = True):
         if not TENSORFLOW_AVAILABLE:
             raise ImportError("TensorFlow is required for LSTM strategy. Install with: pip install tensorflow")
         
@@ -43,6 +45,21 @@ class LSTMStrategy(IStrategy):
         self._model = None
         self._scaler = MinMaxScaler()
         self._is_trained = False
+        
+        # GPU support for TensorFlow
+        self._gpu_manager = get_gpu_manager(use_gpu=use_gpu)
+        if TENSORFLOW_AVAILABLE and self._gpu_manager.use_gpu:
+            # Configure TensorFlow to use GPU
+            try:
+                import tensorflow as tf
+                gpus = tf.config.list_physical_devices('GPU')
+                if gpus:
+                    # Enable memory growth to avoid allocating all GPU memory
+                    for gpu in gpus:
+                        tf.config.experimental.set_memory_growth(gpu, True)
+                    print(f"LSTM Strategy: Using GPU {gpus[0].name}")
+            except Exception as e:
+                print(f"LSTM Strategy: GPU configuration error: {e}")
         
     @property
     def name(self) -> str:

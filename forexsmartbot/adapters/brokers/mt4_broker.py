@@ -57,10 +57,11 @@ class MT4Broker(IBroker):
         """Connect to MT4."""
         try:
             # Check if MT4 is running (check both terminal.exe and terminal64.exe)
+            # Use errors='ignore' to handle any encoding issues with subprocess output
             result = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq terminal.exe'], 
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True, encoding='utf-8', errors='ignore')
             result64 = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq terminal64.exe'], 
-                                   capture_output=True, text=True)
+                                   capture_output=True, text=True, encoding='utf-8', errors='ignore')
             
             if 'terminal.exe' in result.stdout or 'terminal64.exe' in result64.stdout:
                 self._connected = True

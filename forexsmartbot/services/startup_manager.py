@@ -117,7 +117,7 @@ class StartupManager:
             
             subprocess.run([
                 "powershell", "-Command", ps_script
-            ], check=True, capture_output=True)
+            ], check=True, capture_output=True, encoding='utf-8', errors='ignore')
             
             return True
         except Exception as e:

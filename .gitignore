@@ -134,7 +134,7 @@ dmypy.json
 *.sqlite3
 settings.json
 logs/
-data/
+/data/
 backups/
 temp/
 *.log

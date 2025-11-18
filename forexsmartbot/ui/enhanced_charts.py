@@ -265,7 +265,7 @@ class EnhancedChartWidget(QWidget):
         """Generate sample candlestick data for display."""
         try:
             # Generate 100 days of sample data
-            dates = pd.date_range(end=datetime.now(), periods=100, freq='1H')
+            dates = pd.date_range(end=datetime.now(), periods=100, freq='1h')
             
             # Generate realistic price movements
             base_price = 1.1000 if 'EUR' in symbol else 1.3000 if 'GBP' in symbol else 150.0 if 'JPY' in symbol else 0.7500 if 'AUD' in symbol else 1.3500

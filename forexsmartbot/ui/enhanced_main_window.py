@@ -1079,7 +1079,7 @@ class EnhancedMainWindow(QMainWindow):
         # Update timer for real-time data (less frequent to prevent freezing)
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_real_time_data)
-        self.update_timer.start(3000)  # Update every 3 seconds (reduced frequency)
+        self.update_timer.start(5000)  # Update every 5 seconds (reduced frequency to avoid excessive polling)
         
     def _create_risk_config(self):
         """Create risk configuration from settings."""
@@ -2008,6 +2008,15 @@ class EnhancedMainWindow(QMainWindow):
     def update_real_time_data(self):
         """Update real-time data display."""
         try:
+            # Debounce: Skip if last update was too recent (within 4 seconds)
+            if not hasattr(self, '_last_update_time'):
+                self._last_update_time = 0
+            import time
+            current_time = time.time()
+            if current_time - self._last_update_time < 4.0:
+                return  # Skip this update
+            self._last_update_time = current_time
+            
             # Sync positions from MT4 broker if connected
             if self.broker and self.broker.is_connected():
                 try:

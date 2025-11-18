@@ -6,6 +6,8 @@ from typing import Dict, Any, Optional
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from ..core.interfaces import IStrategy
+from ..utils.gpu_numpy import gpu_array, gpu_rolling_mean, gpu_rolling_std
+from ..utils.gpu_utils import get_gpu_manager
 
 
 class MLAdaptiveSuperTrend(IStrategy):
@@ -25,6 +27,10 @@ class MLAdaptiveSuperTrend(IStrategy):
         self._kmeans = KMeans(n_clusters=n_clusters, random_state=42)
         self._volatility_clusters = None
         self._adaptive_multipliers = {0: 1.5, 1: 2.0, 2: 2.5}  # Low, Medium, High volatility
+        
+        # GPU support
+        self._gpu_manager = get_gpu_manager()
+        self._use_gpu = self._gpu_manager.is_gpu_available()
         
     @property
     def name(self) -> str:
@@ -72,9 +78,17 @@ class MLAdaptiveSuperTrend(IStrategy):
         # Fill any remaining NaN values with a small default value
         out['ATR'] = out['ATR'].fillna(0.001)
         
-        # Calculate volatility features for ML
+        # Calculate volatility features for ML (use GPU if available)
         out['Price_Change'] = out['Close'].pct_change()
-        out['Volatility'] = out['Price_Change'].rolling(self._volatility_period).std()
+        if self._use_gpu and len(out) > 100:
+            try:
+                price_change_gpu = gpu_array(out['Price_Change'].values, use_gpu=True)
+                volatility_gpu = gpu_rolling_std(price_change_gpu.to_numpy(), self._volatility_period, use_gpu=True)
+                out['Volatility'] = pd.Series(volatility_gpu.to_numpy(), index=out.index)
+            except:
+                out['Volatility'] = out['Price_Change'].rolling(self._volatility_period).std()
+        else:
+            out['Volatility'] = out['Price_Change'].rolling(self._volatility_period).std()
         out['ATR_Ratio'] = out['ATR'] / out['Close']
         out['High_Low_Ratio'] = (out['High'] - out['Low']) / out['Close']
         
