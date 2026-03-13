@@ -36,6 +36,7 @@ dependencies = [
     "mplfinance>=0.12.10",
     "TA-Lib>=0.6.7",
     "requests>=2.31.0",
+    "ib-insync>=0.9.86",
     "win10toast>=0.9",
 ]
 

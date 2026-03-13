@@ -26,7 +26,7 @@ from ..core.risk_engine import RiskEngine, RiskConfig
 from ..services.controller import TradingController
 from ..services.persistence import SettingsManager, DatabaseManager, LogManager
 from ..strategies import get_strategy, list_strategies
-from ..adapters.brokers import PaperBroker, MT4Broker, RestBroker
+from ..adapters.brokers import PaperBroker, MT4Broker, RestBroker, IBTWSBroker
 from ..adapters.data import YFinanceProvider, CSVProvider, MultiProvider, AlphaVantageProvider, OANDAProvider
 from .settings_dialog import SettingsDialog
 from .backtest_dialog import BacktestDialog
@@ -1141,6 +1141,20 @@ class EnhancedMainWindow(QMainWindow):
                     from forexsmartbot.adapters.brokers.rest_broker import RestBroker
                     self.broker = RestBroker(api_key=api_key, api_secret=api_secret, base_url=base_url)
                     self.append_log("REST API broker initialized")
+            elif broker_mode == 'IB TWS':
+                ib_host = self.settings_manager.get('ib_host', '127.0.0.1')
+                ib_port = int(self.settings_manager.get('ib_port', 7497))
+                ib_client_id = int(self.settings_manager.get('ib_client_id', 1))
+                ib_account_id = self.settings_manager.get('ib_account_id', '')
+                self.broker = IBTWSBroker(
+                    host=ib_host,
+                    port=ib_port,
+                    client_id=ib_client_id,
+                    account_id=ib_account_id,
+                )
+                self.append_log(
+                    f"IB TWS broker initialized: {ib_host}:{ib_port}, clientId={ib_client_id}"
+                )
             else:
                 self.broker = PaperBroker(10000.0)
                 self.append_log("Unknown broker mode - using paper broker")
@@ -2044,6 +2058,8 @@ class EnhancedMainWindow(QMainWindow):
                 self.trading_status_widget.broker_status.setStyleSheet("color: orange; font-weight: bold;")
             elif broker_mode == "REST API":
                 self.trading_status_widget.broker_status.setStyleSheet("color: green; font-weight: bold;")
+            elif broker_mode == "IB TWS":
+                self.trading_status_widget.broker_status.setStyleSheet("color: purple; font-weight: bold;")
             else:
                 self.trading_status_widget.broker_status.setStyleSheet("color: gray; font-weight: bold;")
                 

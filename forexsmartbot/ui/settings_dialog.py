@@ -98,7 +98,7 @@ class SettingsDialog(QDialog):
         
         # Broker mode
         self.broker_mode_combo = QComboBox()
-        self.broker_mode_combo.addItems(['PAPER', 'MT4', 'REST API'])
+        self.broker_mode_combo.addItems(['PAPER', 'MT4', 'REST API', 'IB TWS'])
         layout.addRow(f"{self.tr('broker_mode', 'Broker Mode')}:", self.broker_mode_combo)
         
         # MT4 settings group
@@ -133,6 +133,35 @@ class SettingsDialog(QDialog):
         rest_layout.addRow(f"{self.tr('base_url', 'Base URL')}:", self.rest_base_url_edit)
         
         layout.addWidget(rest_group)
+
+        # Interactive Brokers TWS settings group
+        ib_group = QGroupBox(self.tr('ib_tws_settings', 'Interactive Brokers TWS Settings'))
+        ib_layout = QFormLayout(ib_group)
+
+        self.ib_host_edit = QLineEdit()
+        self.ib_host_edit.setPlaceholderText("127.0.0.1")
+        ib_layout.addRow(f"{self.tr('host', 'Host')}:", self.ib_host_edit)
+
+        self.ib_port_spin = QSpinBox()
+        self.ib_port_spin.setRange(1, 65535)
+        self.ib_port_spin.setValue(7497)
+        ib_layout.addRow(f"{self.tr('port', 'Port')}:", self.ib_port_spin)
+
+        self.ib_client_id_spin = QSpinBox()
+        self.ib_client_id_spin.setRange(0, 999999)
+        self.ib_client_id_spin.setValue(1)
+        ib_layout.addRow(f"{self.tr('client_id', 'Client ID')}:", self.ib_client_id_spin)
+
+        self.ib_account_id_edit = QLineEdit()
+        self.ib_account_id_edit.setPlaceholderText("Optional account ID (e.g. U1234567)")
+        ib_layout.addRow(f"{self.tr('account_id', 'Account ID')}:", self.ib_account_id_edit)
+
+        layout.addWidget(ib_group)
+
+        # Broker connection test
+        self.test_broker_button = QPushButton(self.tr('test_broker_connection', 'Test Broker Connection'))
+        self.test_broker_button.clicked.connect(self.test_broker_connection)
+        layout.addRow(self.test_broker_button)
         
         return widget
         
@@ -346,6 +375,10 @@ class SettingsDialog(QDialog):
         self.rest_api_key_edit.setText(self.settings_manager.get('rest_api_key', ''))
         self.rest_api_secret_edit.setText(self.settings_manager.get('rest_api_secret', ''))
         self.rest_base_url_edit.setText(self.settings_manager.get('rest_base_url', 'https://api.example.com'))
+        self.ib_host_edit.setText(self.settings_manager.get('ib_host', '127.0.0.1'))
+        self.ib_port_spin.setValue(self.settings_manager.get('ib_port', 7497))
+        self.ib_client_id_spin.setValue(self.settings_manager.get('ib_client_id', 1))
+        self.ib_account_id_edit.setText(self.settings_manager.get('ib_account_id', ''))
         
         # Risk settings
         self.risk_pct_spin.setValue(self.settings_manager.get('base_risk_pct', 0.02))
@@ -402,6 +435,14 @@ class SettingsDialog(QDialog):
                     QMessageBox.warning(self, "Broker Configuration", 
                                       "You need to configure the REST API settings before save")
                     return
+            elif broker_mode == 'IB TWS':
+                if not self.ib_host_edit.text().strip() or self.ib_port_spin.value() == 0:
+                    QMessageBox.warning(
+                        self,
+                        "Broker Configuration",
+                        "You need to configure the Interactive Brokers TWS settings before save",
+                    )
+                    return
             
             # General settings
             self.settings_manager.set('portfolio_mode', self.portfolio_mode_checkbox.isChecked())
@@ -416,6 +457,10 @@ class SettingsDialog(QDialog):
             self.settings_manager.set('rest_api_key', self.rest_api_key_edit.text())
             self.settings_manager.set('rest_api_secret', self.rest_api_secret_edit.text())
             self.settings_manager.set('rest_base_url', self.rest_base_url_edit.text())
+            self.settings_manager.set('ib_host', self.ib_host_edit.text())
+            self.settings_manager.set('ib_port', self.ib_port_spin.value())
+            self.settings_manager.set('ib_client_id', self.ib_client_id_spin.value())
+            self.settings_manager.set('ib_account_id', self.ib_account_id_edit.text())
             
             # Risk settings
             self.settings_manager.set('base_risk_pct', self.risk_pct_spin.value())
@@ -534,6 +579,84 @@ class SettingsDialog(QDialog):
                 
         except Exception as e:
             QMessageBox.critical(self, "Connection Test", f"Error testing connections: {str(e)}")
+
+    def test_broker_connection(self):
+        """Test the currently selected broker connection and basic account access."""
+        broker_mode = self.broker_mode_combo.currentText()
+
+        try:
+            if broker_mode == 'PAPER':
+                from ..adapters.brokers.paper_broker import PaperBroker
+                broker = PaperBroker(10000.0)
+            elif broker_mode == 'MT4':
+                from ..adapters.brokers.mt4_broker import MT4Broker
+                host = self.mt4_host_edit.text().strip() or "127.0.0.1"
+                port = self.mt4_port_spin.value()
+                broker = MT4Broker(host=host, port=port)
+            elif broker_mode == 'REST API':
+                from ..adapters.brokers.rest_broker import RestBroker
+                api_key = self.rest_api_key_edit.text().strip()
+                api_secret = self.rest_api_secret_edit.text().strip()
+                base_url = self.rest_base_url_edit.text().strip()
+                if not api_key or not api_secret or not base_url:
+                    QMessageBox.warning(
+                        self,
+                        "Broker Test",
+                        "REST API requires API key, API secret, and base URL.",
+                    )
+                    return
+                broker = RestBroker(api_key=api_key, api_secret=api_secret, base_url=base_url)
+            elif broker_mode == 'IB TWS':
+                from ..adapters.brokers.ib_tws_broker import IBTWSBroker
+                host = self.ib_host_edit.text().strip() or "127.0.0.1"
+                port = self.ib_port_spin.value()
+                client_id = self.ib_client_id_spin.value()
+                account_id = self.ib_account_id_edit.text().strip()
+                broker = IBTWSBroker(
+                    host=host,
+                    port=port,
+                    client_id=client_id,
+                    account_id=account_id,
+                )
+            else:
+                QMessageBox.warning(self, "Broker Test", f"Unsupported broker mode: {broker_mode}")
+                return
+
+            connected = broker.connect()
+            if not connected:
+                QMessageBox.warning(
+                    self,
+                    "Broker Test",
+                    f"{broker_mode} connection failed.\n"
+                    "Please verify host/port/credentials and that the broker service is running.",
+                )
+                return
+
+            # Basic runtime checks for correctness.
+            balance = broker.get_balance()
+            equity = broker.get_equity()
+
+            price_text = "N/A"
+            try:
+                sample_price = broker.get_price("EURUSD")
+                if sample_price is not None:
+                    price_text = f"{sample_price:.5f}"
+            except Exception:
+                # Price check is informative only.
+                pass
+
+            QMessageBox.information(
+                self,
+                "Broker Test",
+                f"{broker_mode} connected successfully.\n\n"
+                f"Balance: {balance}\n"
+                f"Equity: {equity}\n"
+                f"EURUSD Price: {price_text}",
+            )
+            broker.disconnect()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Broker Test", f"Error testing {broker_mode}: {str(e)}")
             
     def reset_to_defaults(self):
         """Reset all settings to defaults."""
