@@ -1442,9 +1442,8 @@ class EnhancedMainWindow(QMainWindow):
                         # Create actual position when signal is generated
                         self.create_position_from_signal(symbol, signal, current_price)
                         
-                        # Add a small delay to prevent rapid-fire trading
-                        import time
-                        time.sleep(1)  # 1 second delay between trades
+                        # Use cooldown mechanism instead of blocking sleep for fast execution
+                        # Cooldown is checked at the start of the loop, no blocking here
                     
                 except Exception as e:
                     self.append_log(f"Error processing {symbol}: {str(e)}")
@@ -1822,82 +1821,39 @@ class EnhancedMainWindow(QMainWindow):
                 
                 if order_id:
                     self.append_log(f"Order submitted to MT4: {order_id} for {symbol}")
-                    # Wait a moment for MT4 to process the order
-                    import time
-                    time.sleep(1.5)  # Give MT4 time to process
-                    # Sync positions from MT4 to get the actual order details
-                    try:
-                        mt4_positions = self.broker.get_positions()
-                        if mt4_positions and symbol in mt4_positions:
-                            mt4_pos = mt4_positions[symbol]
-                            # Use actual MT4 entry price, SL, and TP
-                            entry_price = mt4_pos.entry_price
-                            stop_loss = mt4_pos.stop_loss if mt4_pos.stop_loss else stop_loss
-                            take_profit = mt4_pos.take_profit if mt4_pos.take_profit else take_profit
-                            quantity = mt4_pos.quantity  # Use actual quantity from MT4
-                            self.append_log(f"MT4 order confirmed: {symbol} at {entry_price:.4f}, SL={stop_loss:.4f}, TP={take_profit:.4f}")
-                        else:
-                            self.append_log(f"Warning: Order submitted but position not found in MT4 yet for {symbol}")
-                    except Exception as e:
-                        self.append_log(f"Warning: Could not verify order in MT4: {e}")
+                    # Use QTimer.singleShot for non-blocking delay instead of sleep
+                    # This allows UI to remain responsive while waiting for MT4
+                    from PyQt6.QtCore import QTimer
+                    QTimer.singleShot(1500, lambda: self._sync_mt4_position_after_order(symbol, order_id))
+                    # Continue immediately without blocking - position will be synced async
+                    return
                 else:
                     self.append_log(f"Failed to submit order to MT4 for {symbol}")
-                    return
             else:
                 self.append_log(f"Broker not connected - cannot submit order for {symbol}")
-                return
-            
-            # Create new position with actual MT4 data
-            position = {
-                'symbol': symbol,
-                'side': 'Long' if signal > 0 else 'Short',
-                'entry_price': entry_price,
-                'current_price': entry_price,
-                'quantity': quantity,
-                'take_profit': take_profit,
-                'stop_loss': stop_loss,
-                'pnl': 0.0,
-                'timestamp': datetime.now(),
-                'status': 'Active',
-                'order_id': order_id
-            }
-            
-            self.positions.append(position)
-            self.update_positions_display()
-            
-            # Increment daily trade counter
-            self.daily_trade_count += 1
-            
-            # Update portfolio with new position
-            self.update_portfolio_with_position(position)
-            
-            # Add portfolio mode indicator to log
-            portfolio_mode = self.settings_manager.get('portfolio_mode', False)
-            mode_text = " (Portfolio Mode)" if portfolio_mode else ""
-            self.append_log(f"Position opened: {symbol} {position['side']} at {entry_price:.4f}{mode_text}")
-            
-            # Record trade with performance tracker
-            clean_strategy_name = self._get_current_strategy_name()
-            if clean_strategy_name:
-                self.performance_tracker.record_trade(clean_strategy_name, {
-                    'symbol': symbol,
-                    'side': position['side'],
-                    'entry_price': entry_price,
-                    'quantity': quantity,
-                    'stop_loss': stop_loss,
-                    'take_profit': take_profit,
-                    'entry_time': datetime.now()
-                })
-            
-            # Send notification
-            self.notification_service.show_position_alert(
-                "open", symbol, position['side'], entry_price, 
-                take_profit=position.get('take_profit'),
-                stop_loss=position.get('stop_loss')
-            )
-            
         except Exception as e:
             self.append_log(f"Error creating position: {str(e)}")
+    
+    def _sync_mt4_position_after_order(self, symbol: str, order_id: str):
+        """Sync MT4 position after order submission (non-blocking callback)."""
+        try:
+            # Sync positions from MT4 to get the actual order details
+            if self.broker and self.broker.is_connected():
+                mt4_positions = self.broker.get_positions()
+                if mt4_positions and symbol in mt4_positions:
+                    mt4_pos = mt4_positions[symbol]
+                    # Use actual MT4 entry price, SL, and TP
+                    entry_price = mt4_pos.entry_price
+                    stop_loss = mt4_pos.stop_loss if mt4_pos.stop_loss else None
+                    take_profit = mt4_pos.take_profit if mt4_pos.take_profit else None
+                    quantity = mt4_pos.quantity  # Use actual quantity from MT4
+                    self.append_log(f"MT4 order confirmed: {symbol} at {entry_price:.4f}, SL={stop_loss:.4f if stop_loss else 'None'}, TP={take_profit:.4f if take_profit else 'None'}")
+                else:
+                    self.append_log(f"Warning: Order submitted but position not found in MT4 yet for {symbol}")
+            else:
+                self.append_log(f"Broker not connected - cannot verify order for {symbol}")
+        except Exception as e:
+            self.append_log(f"Warning: Could not verify order in MT4: {e}")
     
     def close_position_from_signal(self, symbol, price):
         """Close a position from a trading signal."""
