@@ -29,7 +29,7 @@ def main():
         # Create QApplication
         app = QApplication(sys.argv)
         app.setApplicationName("ForexSmartBot")
-        app.setApplicationVersion("3.0.0")
+        app.setApplicationVersion("3.1.0")
         app.setOrganizationName("VoxHash")
         
         # Set application properties (PyQt6 compatibility)
@@ -65,8 +65,9 @@ def main():
             if 'app' in locals():
                 QMessageBox.critical(None, "Application Error", 
                                    f"Failed to start ForexSmartBot:\n\n{str(e)}")
-        except:
+        except Exception as display_error:
             print(f"Critical error: {e}")
+            print(f"Failed to display error dialog: {display_error}")
         
         sys.exit(1)
 

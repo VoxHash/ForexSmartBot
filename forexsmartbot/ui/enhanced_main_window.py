@@ -1473,7 +1473,7 @@ class EnhancedMainWindow(QMainWindow):
             if ' (' in clean_strategy_name:
                 clean_strategy_name = clean_strategy_name.split(' (')[0]
             return clean_strategy_name
-        except:
+        except Exception:
             return None
     
     def generate_strategy_signal(self, strategy, symbol, current_price):
@@ -1725,7 +1725,7 @@ class EnhancedMainWindow(QMainWindow):
                     leverage_part = parts[1].split(" ")[0]
                     return float(leverage_part)
             return 1.0  # Default leverage
-        except:
+        except Exception:
             return 1.0
     
     def _get_current_balance(self):
@@ -1738,7 +1738,7 @@ class EnhancedMainWindow(QMainWindow):
                 base_balance = 10000.0
             closed_pnl = sum(trade.pnl for trade in self.closed_trades)
             return base_balance + closed_pnl
-        except:
+        except Exception:
             return 10000.0
     
     def create_position_from_signal(self, symbol, signal, price):

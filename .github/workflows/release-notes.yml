@@ -1,0 +1,33 @@
+name: Generate Release Notes
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-release-notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Extract changelog section
+      id: changelog
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        # Extract the changelog section for this version
+        awk "/^## \[${VERSION}\]/,/^## \[/" CHANGELOG.md | sed '$d' > release_notes.md
+        echo "notes<<EOF" >> $GITHUB_OUTPUT
+        cat release_notes.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Update Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body_path: release_notes.md
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

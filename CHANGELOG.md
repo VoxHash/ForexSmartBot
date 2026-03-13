@@ -1,8 +1,22 @@
-# Changelog
+# Changelog — ForexSmartBot
 
-All notable changes to the ForexSmartBot project will be documented in this file.
+All notable changes to this project will be documented in this file.
 
-## [3.1.0] - 2026-01-XX
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+## [3.1.0] - 2026-03-12
 
 ### Added
 - **Enhanced ML Strategies**: 7 new machine learning strategies
@@ -57,13 +71,8 @@ All notable changes to the ForexSmartBot project will be documented in this file
 - **Strategy Execution**: Enhanced error handling prevents crashes
 - **Parameter Optimization**: Improved stability for edge cases
 - **Multi-Timeframe**: Fixed data provider integration
-
-### Technical Details
-- **New Modules**: 8 major modules added
-- **New Strategies**: 7 ML strategies implemented
-- **Code Added**: ~5,000+ lines of production code
-- **Examples**: 3 comprehensive example scripts
-- **Documentation**: 3 new documentation files
+- **Version Consistency**: Fixed version mismatch between app.py and pyproject.toml
+- **Error Handling**: Replaced bare except clauses with proper exception handling
 
 ## [3.0.0] - 2025-09-25
 
