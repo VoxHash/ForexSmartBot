@@ -60,6 +60,90 @@ A mean reversion strategy using RSI with trend filter. Generates signals when RS
 - Stop Loss: 1.5x ATR below/above entry price
 - Take Profit: RSI-based target levels
 
+### 4. Fear Index (Fear_Index)
+
+A composite risk-regime strategy designed to quantify market fear from multiple factors and convert it into risk-on/risk-off signals.
+
+**Inputs (preferred):**
+- `VIX` (volatility proxy)
+- `FX_VOL` (FX implied/realized volatility proxy)
+- `DXY` (USD risk proxy)
+- `NEWS_SENTIMENT` (normalized sentiment score)
+- `POLICY_RISK` (event/policy risk score)
+
+If some inputs are missing, the strategy uses internal price-based proxies.
+
+**Mathematical Model:**
+
+For each feature \(x_i(t)\), compute rolling z-score:
+
+\[
+z_i(t) = \frac{x_i(t) - \mu_i(t,L)}{\sigma_i(t,L)}
+\]
+
+where \(L\) is the lookback window.
+
+Composite fear score:
+
+\[
+F_{raw}(t)=0.30z_{VIX}(t)+0.25z_{FXVOL}(t)+0.15z_{DXY}(t)+0.20z_{NEWS}(t)+0.10z_{POLICY}(t)
+\]
+
+Smoothed score:
+
+\[
+F(t)=SMA(F_{raw}(t), s)
+\]
+
+with smoothing window \(s\).
+
+**Signal Logic:**
+- Buy (`+1`): \(F(t)\) crosses below `risk_on_threshold`
+- Sell (`-1`): \(F(t)\) crosses above `risk_off_threshold`
+- Hold (`0`): otherwise
+
+**Risk Management:**
+- Stop Loss: `stop_atr_mult × ATR`
+- Take Profit: `take_atr_mult × ATR`
+- Volatility: rolling std of returns used by risk engine for sizing
+
+**Performance Goal:**
+- Optimize for robust risk-adjusted returns (Sharpe, drawdown, profit factor), not fixed win-rate guarantees.
+
+## Mathematical Strategy Spec Template
+
+Use this template for every strategy specification in this document:
+
+1. **Objective / Regime**  
+   Define when the strategy should be active and what inefficiency it targets.
+
+2. **Feature Set**  
+   List exact input variables and data sources.
+
+3. **Core Equations**  
+   - Indicator equations
+   - Signal equation
+   - Thresholds and transitions
+
+4. **Execution Rules**  
+   - Entry conditions
+   - Exit conditions
+   - Cooldown / position constraints
+
+5. **Risk Model**  
+   - Stop and target equations
+   - Position sizing equation
+   - Portfolio exposure constraints
+
+6. **Validation Protocol**  
+   - In-sample and out-of-sample split
+   - Walk-forward validation
+   - Cost/slippage assumptions
+   - Acceptance metrics (Sharpe, DD, PF, stability)
+
+7. **Failure Modes**  
+   Known scenarios where the strategy should be disabled or down-weighted.
+
 ## Strategy Development
 
 ### Creating a Custom Strategy

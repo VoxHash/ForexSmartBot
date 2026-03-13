@@ -9,6 +9,7 @@ from .mean_reversion import MeanReversion
 from .momentum_breakout import MomentumBreakout
 from .scalping_ma import ScalpingMA
 from .news_trading import NewsTrading
+from .fear_index import FearIndexStrategy
 
 # New ML Strategies
 # Use broad exception handling to catch DLL loading errors on Windows
@@ -80,6 +81,7 @@ STRATEGIES = {
     # High Risk Strategies
     'Momentum_Breakout': MomentumBreakout,
     'News_Trading': NewsTrading,
+    'Fear_Index': FearIndexStrategy,
     'ML_Adaptive_SuperTrend': MLAdaptiveSuperTrend,
     'Adaptive_Trend_Flow': AdaptiveTrendFlow,
 }
@@ -102,7 +104,7 @@ if MULTI_TIMEFRAME_AVAILABLE:
 RISK_LEVELS = {
     'Low_Risk': ['Mean_Reversion', 'SMA_Crossover'],
     'Medium_Risk': ['Scalping_MA', 'RSI_Reversion', 'BreakoutATR'],
-    'High_Risk': ['Momentum_Breakout', 'News_Trading', 'ML_Adaptive_SuperTrend', 'Adaptive_Trend_Flow',
+    'High_Risk': ['Momentum_Breakout', 'News_Trading', 'Fear_Index', 'ML_Adaptive_SuperTrend', 'Adaptive_Trend_Flow',
                   'LSTM_Strategy', 'SVM_Strategy', 'Ensemble_ML_Strategy', 'Transformer_Strategy', 
                   'RL_Strategy', 'Multi_Timeframe']
 }
