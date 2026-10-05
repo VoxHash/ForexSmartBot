@@ -16,6 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.2.0] - 2026-10-05
+
+### Added
+- **Data providers**: Twelve Data (`TwelveDataProvider`) and Stooq (`StooqProvider`) adapters with multi-provider fallback wiring ([#](https://github.com/VoxHash/ForexSmartBot))
+- **Interactive Brokers**: TWS broker integration via `ib-insync` with settings UI connection test (`3c1c534`)
+- **Fear Index strategy**: Mathematical specification and registered `Fear_Index` strategy (`f8e215a`)
+
+### Changed
+- **Documentation**: Consolidated API reference; expanded data provider setup (Twelve Data, Stooq); trimmed duplicate performance guides
+- **LICENSE**: Copyright holder updated to VoxHash LLC (2026)
+- **README**: Documentation links updated (unified API reference, data providers guide)
+
+### Fixed
+- **CI**: GitHub Actions upgraded to `@v4` artifacts/cache/checkout (`9236c32`)
+
+### Changed (performance)
+- Memory and execution-speed optimizations for low-latency trading paths (`35294cd`)
+
 ## [3.1.0] - 2026-03-12
 
 ### Added

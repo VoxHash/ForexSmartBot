@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.7+-green.svg)](https://www.riverbankcomputing.com/software/pyqt/)
-[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/VoxHash/ForexSmartBot/releases)
+[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](https://github.com/VoxHash/ForexSmartBot/releases)
 
 > Professional-grade desktop application for automated forex trading with advanced risk management, multiple trading strategies, and real-time portfolio monitoring.
 
@@ -92,8 +92,9 @@ Full configuration reference: [docs/Configuration-Guide.md](docs/Configuration-G
 ## 📚 Documentation
 
 - **Getting Started**: [Quick Start Guide](docs/QUICK_START_V3.1.0.md)
-- **API Reference**: [Python API](docs/API-REFERENCE.md) | [REST API](docs/API_DOCUMENTATION.md)
+- **API Reference**: [Unified API Reference](docs/API-REFERENCE.md)
 - **Architecture**: [System Architecture](docs/ARCHITECTURE.md)
+- **Data Providers**: [Provider Setup Guide](docs/DATA_PROVIDERS_SETUP.md)
 - **Examples**: [Example Scripts](examples/)
 - **FAQ**: [Frequently Asked Questions](docs/FAQ.md)
 - **Troubleshooting**: [Common Issues](docs/TROUBLESHOOTING.md)

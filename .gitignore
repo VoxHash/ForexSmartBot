@@ -74,6 +74,7 @@ Thumbs.db
 # Logs
 logs
 *.log
+forexsmartbot.log
 
 # Temporary files
 *.tmp

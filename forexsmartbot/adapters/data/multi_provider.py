@@ -7,6 +7,8 @@ from .yfinance_provider import YFinanceProvider
 from .alpha_vantage_provider import AlphaVantageProvider
 from .oanda_provider import OANDAProvider
 from .mt4_provider import MT4Provider
+from .twelve_data_provider import TwelveDataProvider
+from .stooq_provider import StooqProvider
 from .config import DataProviderConfig
 
 
@@ -31,10 +33,27 @@ class MultiProvider(IDataProvider):
                     mt4_provider = MT4Provider(mt4_host, mt4_port)
                     self.providers.append(mt4_provider)
                     print("Added MT4Provider as primary provider")
-                
-                
-                
-                
+
+                oanda_key = self.settings_manager.get('oanda_api_key', '')
+                oanda_account = self.settings_manager.get('oanda_account_id', '')
+                if oanda_key and oanda_account:
+                    self.providers.append(OANDAProvider(oanda_key, oanda_account))
+                    print("Added OANDAProvider")
+
+                td_key = self.settings_manager.get('twelve_data_api_key', '')
+                if td_key:
+                    self.providers.append(TwelveDataProvider(td_key))
+                    print("Added TwelveDataProvider")
+
+                av_key = self.settings_manager.get('alpha_vantage_api_key', '')
+                if av_key:
+                    self.providers.append(AlphaVantageProvider(av_key))
+                    print("Added AlphaVantageProvider")
+
+                # Free fallback providers
+                self.providers.append(StooqProvider())
+                self.providers.append(YFinanceProvider())
+
                 # Always ensure we have at least one provider as fallback
                 if not self.providers:
                     # If no providers available, create a dummy provider that returns empty data
@@ -54,6 +73,14 @@ class MultiProvider(IDataProvider):
                     api_key = self.config.get_oanda_key()
                     account_id = self.config.get_oanda_account_id()
                     self.providers.append(OANDAProvider(api_key, account_id))
+
+                if self.config.is_provider_enabled('twelve_data'):
+                    api_key = self.config.get_twelve_data_key()
+                    if api_key:
+                        self.providers.append(TwelveDataProvider(api_key))
+
+                if self.config.is_provider_enabled('stooq'):
+                    self.providers.append(StooqProvider())
         else:
             self.providers = providers
         

@@ -7,7 +7,10 @@ from .oanda_provider import OANDAProvider
 from .mt4_provider import MT4Provider
 from .multi_provider import MultiProvider
 from .dummy_provider import DummyProvider
+from .twelve_data_provider import TwelveDataProvider
+from .stooq_provider import StooqProvider
 from .config import DataProviderConfig
+from ...core.interfaces import IDataProvider
 
 __all__ = [
     'YFinanceProvider', 
@@ -17,5 +20,8 @@ __all__ = [
     'MT4Provider', 
     'MultiProvider',
     'DummyProvider',
-    'DataProviderConfig'
+    'TwelveDataProvider',
+    'StooqProvider',
+    'DataProviderConfig',
+    'IDataProvider',
 ]

@@ -25,6 +25,13 @@ class DataProviderConfig:
                 'account_id': os.getenv('OANDA_ACCOUNT_ID', '101-001-123456-001'),
                 'enabled': True
             },
+            'twelve_data': {
+                'api_key': os.getenv('TWELVE_DATA_API_KEY', ''),
+                'enabled': True
+            },
+            'stooq': {
+                'enabled': True
+            },
             'yfinance': {
                 'enabled': True
             }
@@ -41,6 +48,10 @@ class DataProviderConfig:
     def get_oanda_account_id(self) -> str:
         """Get OANDA account ID."""
         return self.config['oanda']['account_id']
+
+    def get_twelve_data_key(self) -> str:
+        """Get Twelve Data API key."""
+        return self.config['twelve_data']['api_key']
     
     def is_provider_enabled(self, provider_name: str) -> bool:
         """Check if a provider is enabled."""
@@ -69,6 +80,17 @@ class DataProviderConfig:
             4. Set environment variables:
                - OANDA_API_KEY=your_token
                - OANDA_ACCOUNT_ID=your_account_id
+            """,
+            'twelve_data': """
+            Twelve Data Setup:
+            1. Go to https://twelvedata.com/
+            2. Create a free account and generate API key
+            3. Set environment variable: TWELVE_DATA_API_KEY=your_key
+            """,
+            'stooq': """
+            Stooq Setup:
+            - Public data endpoint, no API key required
+            - Useful as free fallback provider
             """,
             'yfinance': """
             Yahoo Finance:
