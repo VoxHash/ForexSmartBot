@@ -1,9 +1,11 @@
 # ForexSmartBot
 
+[![PyPI version](https://img.shields.io/pypi/v/forexsmartbot.svg)](https://pypi.org/project/forexsmartbot/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/forexsmartbot.svg)](https://pypi.org/project/forexsmartbot/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.7+-green.svg)](https://www.riverbankcomputing.com/software/pyqt/)
-[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](https://github.com/VoxHash/ForexSmartBot/releases)
+
+Install: [PyPI](https://pypi.org/project/forexsmartbot/) · `pip install forexsmartbot`
 
 > Professional-grade desktop application for automated forex trading with advanced risk management, multiple trading strategies, and real-time portfolio monitoring.
 

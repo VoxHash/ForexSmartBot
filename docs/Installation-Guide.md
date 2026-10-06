@@ -20,12 +20,20 @@ This guide will walk you through installing ForexSmartBot on your system.
 
 ## Installation Methods
 
-### Method 1: From Source (Recommended)
+### Method 1: From PyPI (Recommended)
+
+```bash
+pip install forexsmartbot
+```
+
+Package page: [https://pypi.org/project/forexsmartbot/](https://pypi.org/project/forexsmartbot/)
+
+### Method 2: From Source
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/voxhash/forexsmartbot.git
-   cd forexsmartbot
+   git clone https://github.com/VoxHash/ForexSmartBot.git
+   cd ForexSmartBot
    ```
 
 2. **Create a virtual environment**
@@ -48,12 +56,6 @@ This guide will walk you through installing ForexSmartBot on your system.
    ```bash
    python app.py --version
    ```
-
-### Method 2: Using pip (Future)
-
-```bash
-pip install forexsmartbot
-```
 
 ### Method 3: Using Docker
 
