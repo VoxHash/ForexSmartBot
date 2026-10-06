@@ -1,13 +1,15 @@
 # ForexSmartBot
 
-[![PyPI version](https://img.shields.io/pypi/v/forexsmartbot.svg)](https://pypi.org/project/forexsmartbot/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/forexsmartbot.svg)](https://pypi.org/project/forexsmartbot/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![PyQt6](https://img.shields.io/badge/PyQt6-6.7+-green.svg)](https://www.riverbankcomputing.com/software/pyqt/)
+![PyPI version](https://img.shields.io/pypi/v/forexsmartbot.svg)
+![Python Versions](https://img.shields.io/pypi/pyversions/forexsmartbot.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![PyQt6](https://img.shields.io/badge/PyQt6-6.7+-green.svg)
 
-Install: [PyPI](https://pypi.org/project/forexsmartbot/) · `pip install forexsmartbot`
+
 
 > Professional-grade desktop application for automated forex trading with advanced risk management, multiple trading strategies, and real-time portfolio monitoring.
+
+
 
 ## ✨ Features
 
@@ -20,6 +22,8 @@ Install: [PyPI](https://pypi.org/project/forexsmartbot/) · `pip install forexsm
 - **Strategy Builder**: Visual strategy construction with code generation
 - **Strategy Marketplace**: Community-driven strategy sharing platform
 
+
+
 ## 🧭 Table of Contents
 
 - [Quick Start](#-quick-start)
@@ -29,6 +33,8 @@ Install: [PyPI](https://pypi.org/project/forexsmartbot/) · `pip install forexsm
 - [Documentation](#-documentation)
 - [Contributing](#-contributing)
 - [License](#-license)
+
+
 
 ## 🚀 Quick Start
 
@@ -44,12 +50,18 @@ For detailed installation instructions, see [docs/installation.md](docs/Installa
 
 ## 💿 Installation
 
+
+
 ### From PyPI (Recommended)
+
 ```bash
 pip install forexsmartbot
 ```
 
+
+
 ### From Source
+
 ```bash
 git clone https://github.com/VoxHash/ForexSmartBot.git
 cd ForexSmartBot
@@ -57,7 +69,10 @@ pip install -r requirements.txt
 python app.py
 ```
 
+
+
 ### With GPU Acceleration (Optional)
+
 ```bash
 # For CUDA 12.x
 pip install cupy-cuda12x
@@ -69,6 +84,8 @@ pip install cupy-cuda11x
 See [docs/GPU_ACCELERATION.md](docs/GPU_ACCELERATION.md) for detailed setup instructions.
 
 ## 🛠 Usage
+
+
 
 ### Basic Workflow
 
@@ -82,12 +99,14 @@ For advanced usage, see [docs/usage.md](docs/QUICK_START_V3.1.0.md) and [docs/cl
 
 ## ⚙️ Configuration
 
-| Variable | Description | Default |
-|---|---|---|
-| `INITIAL_BALANCE` | Starting account balance | 10000.0 |
-| `RISK_PER_TRADE` | Risk percentage per trade | 0.02 |
-| `MAX_LEVERAGE` | Maximum leverage | 1:100 |
-| `DATA_INTERVAL` | Data update interval | 1h |
+
+| Variable          | Description               | Default |
+| ----------------- | ------------------------- | ------- |
+| `INITIAL_BALANCE` | Starting account balance  | 10000.0 |
+| `RISK_PER_TRADE`  | Risk percentage per trade | 0.02    |
+| `MAX_LEVERAGE`    | Maximum leverage          | 1:100   |
+| `DATA_INTERVAL`   | Data update interval      | 1h      |
+
 
 Full configuration reference: [docs/Configuration-Guide.md](docs/Configuration-Guide.md)
 
@@ -124,7 +143,7 @@ This project is licensed under the terms in [LICENSE](LICENSE).
 - **Documentation**: [docs/](docs/)
 - **FAQ**: [docs/FAQ.md](docs/FAQ.md)
 - **Issues**: [GitHub Issues](https://github.com/VoxHash/ForexSmartBot/issues)
-- **Email**: contact@voxhash.dev
+- **Email**: [contact@voxhash.dev](mailto:contact@voxhash.dev)
 
 See [SUPPORT.md](SUPPORT.md) for more support options.
 
