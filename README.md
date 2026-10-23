@@ -83,6 +83,18 @@ pip install cupy-cuda11x
 
 See [docs/GPU_ACCELERATION.md](docs/GPU_ACCELERATION.md) for detailed setup instructions.
 
+### With Native Rust Indicators (Optional)
+
+Lower-memory SMA/ATR/RSI and parallel batch SMA via PyO3 (`native/fsb_core`). Requires [Rust](https://rustup.rs/) and [maturin](https://www.maturin.rs/).
+
+```bash
+# once: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+pip install maturin
+cd native/fsb_core && maturin develop --release
+```
+
+Without the extension, the same Python APIs use a NumPy fallback automatically. See [docs/PERFORMANCE_TUNING.md](docs/PERFORMANCE_TUNING.md).
+
 ## 🛠 Usage
 
 

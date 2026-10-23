@@ -1,7 +1,6 @@
 """SMA Crossover strategy."""
 
 import pandas as pd
-import numpy as np
 from typing import Dict, Any, Optional
 from ..core.interfaces import IStrategy
 
@@ -36,24 +35,11 @@ class SMACrossover(IStrategy):
             self._atr_period = int(kwargs['atr_period'])
             
     def indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Calculate SMA and ATR indicators."""
-        out = df.copy()
-        
-        # SMAs
-        out['SMA_fast'] = out['Close'].rolling(self._fast_period).mean()
-        out['SMA_slow'] = out['Close'].rolling(self._slow_period).mean()
-        
-        # ATR
-        tr = np.maximum(
-            out['High'] - out['Low'],
-            np.maximum(
-                abs(out['High'] - out['Close'].shift(1)),
-                abs(out['Low'] - out['Close'].shift(1))
-            )
+        """Calculate SMA and ATR indicators (Rust ``fsb_core`` when available)."""
+        from ..utils.native_indicators import apply_sma_atr_indicators
+        return apply_sma_atr_indicators(
+            df, self._fast_period, self._slow_period, self._atr_period
         )
-        out['ATR'] = tr.rolling(self._atr_period).mean()
-        
-        return out
         
     def signal(self, df: pd.DataFrame) -> int:
         """Generate trading signal based on SMA crossover."""

@@ -68,27 +68,36 @@ class CalculationEngine:
                           columns=returns_df.columns)
         
     @staticmethod
-    @jit(nopython=True)
     def fast_rolling_mean(values: np.ndarray, window: int) -> np.ndarray:
+        """Fast rolling mean: prefer Rust ``fsb_core``, else Numba, else NumPy."""
+        from ..utils.native_indicators import native_available, sma
+
+        if native_available():
+            return sma(values, window)
+        return CalculationEngine._numba_rolling_mean(np.asarray(values, dtype=np.float64), window)
+
+    @staticmethod
+    @jit(nopython=True)
+    def _numba_rolling_mean(values: np.ndarray, window: int) -> np.ndarray:
         """Fast rolling mean calculation using numba."""
         n = len(values)
         result = np.full(n, np.nan)
-        
+
         for i in range(window - 1, n):
             result[i] = np.mean(values[i - window + 1:i + 1])
-            
+
         return result
-        
+
     @staticmethod
     @jit(nopython=True)
     def fast_rolling_std(values: np.ndarray, window: int) -> np.ndarray:
         """Fast rolling standard deviation calculation."""
         n = len(values)
         result = np.full(n, np.nan)
-        
+
         for i in range(window - 1, n):
             result[i] = np.std(values[i - window + 1:i + 1])
-            
+
         return result
         
     @lru_cache(maxsize=128)

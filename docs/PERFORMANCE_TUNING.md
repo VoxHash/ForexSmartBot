@@ -30,6 +30,18 @@ Canonical performance and memory guide for ForexSmartBot.
 - Clear cached indicator/model artifacts between long test runs
 - Track memory periodically during optimization sessions
 
+## Optional Rust native core (`fsb_core`)
+
+Indicator and compact backtest loops are CPU-bound and run often during strategy evaluation. The optional Rust extension under `native/fsb_core` (PyO3 + rayon) offloads SMA/ATR/RSI, batch SMA, and SMA-crossover equity curves so the PyQt process shares the machine more cleanly with other apps.
+
+```bash
+pip install maturin
+cd native/fsb_core && maturin develop --release
+python -c "from forexsmartbot.utils.native_indicators import native_status; print(native_status())"
+```
+
+Call sites: `forexsmartbot.utils.native_indicators`, wired into `SMACrossover` / core `Strategy` indicators and `CalculationEngine.fast_rolling_mean`. If the module is missing, NumPy (and Numba where already used) remains the path — no mocks.
+
 ## Data Provider Optimization
 
 - Configure provider fallback chain via `MultiProvider`

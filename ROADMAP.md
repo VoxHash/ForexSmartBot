@@ -24,6 +24,17 @@ High-level milestones aligned with the current **3.2.x** line. See [CHANGELOG.md
 - Mobile monitoring companion (read-only portfolio/alerts)
 - Web dashboard for strategy health
 
+## Native performance core (in progress)
+- **Rust (`native/fsb_core` via PyO3/maturin)** for indicator math (SMA/ATR/RSI), rayon batch SMA, and a compact SMA-crossover equity loop — chosen over Go/Zig/C for memory safety + strong Python interop; Ruby is a poor fit for this CPU-bound goal.
+- Optional build: `cd native/fsb_core && maturin develop --release`. Python call sites fall back to NumPy when the extension is missing.
+- Further candidates: walk-forward parameter sweeps and multi-symbol aggregation workers (keep PyQt on the Python side).
+
+## Future — Android / GrapheneOS
+- **Companion app** (not a full trading rewrite): read-only portfolio, P&L, and alert push while the desktop PyQt bot remains the execution host.
+- Prefer a **hardened Android** path (GrapheneOS-friendly): minimal permissions, no unnecessary trackers, local-first sync over TLS to the existing cloud/API surface when enabled.
+- Realistic scope: status/monitor + approve/reject high-level actions; broker keys and order routing stay on the desktop (or a trusted always-on host), not on the phone.
+- Tech TBD after API hardening: Kotlin client talking to the current remote-monitor / cloud endpoints.
+
 ## Future
 - Social / copy trading and marketplace growth
 - Multi-asset support (equities, crypto) where data providers allow

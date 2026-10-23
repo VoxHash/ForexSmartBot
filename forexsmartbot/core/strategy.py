@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 class Strategy:
     """Simple trend/volatility aware strategy:
@@ -13,14 +12,8 @@ class Strategy:
         self.atr_window = atr_window
 
     def indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        out = df.copy()
-        out['SMA_fast'] = out['Close'].rolling(self.fast).mean()
-        out['SMA_slow'] = out['Close'].rolling(self.slow).mean()
-        tr = np.maximum(out['High']-out['Low'],
-                        np.maximum(abs(out['High']-out['Close'].shift(1)),
-                                   abs(out['Low']-out['Close'].shift(1))))
-        out['ATR'] = tr.rolling(self.atr_window).mean()
-        return out
+        from ..utils.native_indicators import apply_sma_atr_indicators
+        return apply_sma_atr_indicators(df, self.fast, self.slow, self.atr_window)
 
     def signal(self, df: pd.DataFrame) -> int:
         if len(df) < max(self.fast, self.slow) + 2:
