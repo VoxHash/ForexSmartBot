@@ -10,7 +10,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from forexsmartbot.strategies import get_strategy, list_strategies
-from forexsmartbot.adapters.data import YFinanceProvider
+from forexsmartbot.adapters.data import MultiProvider
 from forexsmartbot.services.backtest import BacktestService
 from forexsmartbot.core.risk_engine import RiskConfig
 
@@ -23,7 +23,7 @@ def benchmark_strategy(strategy_name, symbol, start_date, end_date, initial_bala
         # Measure execution time
         start_time = time.time()
         
-        service = BacktestService(YFinanceProvider())
+        service = BacktestService(MultiProvider())
         results = service.run_backtest(
             strategy=strategy,
             symbol=symbol,

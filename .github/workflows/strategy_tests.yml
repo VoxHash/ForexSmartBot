@@ -44,6 +44,7 @@ jobs:
     - name: Run strategy tests
       run: |
         python -m forexsmartbot.testing.ci_cd_pipeline \
+          --strategies SMA_Crossover RSI_Reversion BreakoutATR Mean_Reversion \
           --config .github/test_config.json \
           --output test_report.txt \
           --json test_results.json

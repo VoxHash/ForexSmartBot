@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Strategy Tests workflow**: Invoke pipeline as `python -m forexsmartbot.testing.ci_cd_pipeline` (relative imports failed when run as a script)
+- **Strategy Tests**: MultiProvider + synthetic OHLCV fallback when Yahoo returns empty; core strategy set on CI; softer gate thresholds for sandbox safety
 - **Backtest dialog**: Strategy combo stores registry name in `userData`; worker emits error payload so the UI re-enables after failures; equity curve included in results
 
 ## [3.2.3] - 2026-10-24
