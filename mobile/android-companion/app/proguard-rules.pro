@@ -1,0 +1,3 @@
+-keepclassmembers class dev.voxhash.fsbcompanion.model.** { *; }
+-dontwarn okhttp3.**
+-dontwarn retrofit2.**

@@ -79,8 +79,16 @@ Typical endpoints:
 - `GET /api/v1/account/positions`
 - `POST /api/v1/orders`
 
+Remote monitor (default `http://localhost:8080`):
+- `GET /api/v1/health` (public)
+- `GET /api/v1/status` / `positions` / `trades` / `alerts` (auth)
+- `GET /api/v1/strategies` / `GET /api/v1/strategies/<name>` — strategy health dashboard
+- `GET /api/v1/companion/health` (public)
+- `GET /api/v1/companion/portfolio` / `positions` / `alerts` / `strategies` (auth, read-only)
+- `POST|DELETE /api/v1/companion/devices/webhook` — HTTPS webhook registration
+
 Authentication:
-- Bearer API key or JWT token depending on cloud module configuration.
+- Bearer API key or `X-API-Key` on remote monitor / companion; JWT on cloud API server when configured.
 
 ## Notes
 

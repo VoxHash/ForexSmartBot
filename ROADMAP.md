@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.2.x** line (latest **3.2.5**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.3.x** line (latest **3.3.0**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -22,8 +22,8 @@ High-level milestones aligned with the current **3.2.x** line (latest **3.2.5**)
 - [x] Remote monitoring and cloud sync hardening — auth (Bearer/`X-API-Key`, constant-time), `/healthz` + monitor health, sync retry/backoff + pending queue + auto-sync thread, JWT/PBKDF2 security fixes, docs + `tests/test_cloud_hardening.py` (first production-ready slice; hosted multi-tenant cloud backend and full mobile companion remain Q2+)
 
 ## Q2 2027
-- Mobile monitoring companion (read-only portfolio/alerts)
-- Web dashboard for strategy health
+- [x] Mobile monitoring companion (read-only portfolio/alerts) — first slice: `CompanionAPI` at `/api/v1/companion/*` (portfolio, positions, alerts, strategies, webhook register); mounted on `RemoteMonitorServer`; GrapheneOS-friendly `WebhookNotifier` (HTTPS, no FCM required); Android Kotlin scaffold under `mobile/android-companion/` (Retrofit client, no Play Services). Full store-ready Android UX / push UX still open.
+- [x] Web dashboard for strategy health — `GET /api/v1/strategies` (+ per-name), `StrategyMonitor.get_dashboard_payload()` / `StrategyHealth.to_dict()`, remote-monitor HTML Strategy Health table with live poll. Further polish (history charts, multi-host) still open.
 
 ## Native performance core (in progress)
 - **Rust (`native/fsb_core` via PyO3/maturin)** for indicator math (SMA/ATR/RSI), rayon batch SMA, and a compact SMA-crossover equity loop — chosen over Go/Zig/C for memory safety + strong Python interop; Ruby is a poor fit for this CPU-bound goal.
@@ -31,10 +31,8 @@ High-level milestones aligned with the current **3.2.x** line (latest **3.2.5**)
 - Further candidates: walk-forward parameter sweeps and multi-symbol aggregation workers (keep PyQt on the Python side).
 
 ## Future — Android / GrapheneOS
-- **Companion app** (not a full trading rewrite): read-only portfolio, P&L, and alert push while the desktop PyQt bot remains the execution host.
-- Prefer a **hardened Android** path (GrapheneOS-friendly): minimal permissions, no unnecessary trackers, local-first sync over TLS to the existing cloud/API surface when enabled.
-- Realistic scope: status/monitor + approve/reject high-level actions; broker keys and order routing stay on the desktop (or a trusted always-on host), not on the phone.
-- Tech TBD after API hardening: Kotlin client talking to the current remote-monitor / cloud endpoints.
+- [x] **API + scaffold (3.3.0)**: Kotlin client talks to remote-monitor `/api/v1/companion/*`; webhook alerts; no Google deps in scaffold; broker keys stay on desktop.
+- Remaining: polished Compose UI, pairing/QR onboarding, approve/reject high-level actions, certificate pinning defaults, Play-/F-Droid-ready packaging, optional local encrypted cache.
 
 ## Future
 - Social / copy trading and marketplace growth

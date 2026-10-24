@@ -16,6 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.0] - 2026-10-24
+
+### Added
+- **Companion API** (`forexsmartbot.cloud.companion_api`): read-only `/api/v1/companion/*` — health, portfolio, positions, alerts, strategies, webhook device register; Bearer / X-API-Key; control off by default
+- **WebhookNotifier**: HTTPS (or localhost HTTP) alert delivery without FCM / Google Play Services
+- **Strategy health dashboard**: `GET /api/v1/strategies` and `GET /api/v1/strategies/<name>` on remote monitor; HTML Strategy Health table; `StrategyHealth.to_dict()` / `StrategyMonitor.get_dashboard_payload()`
+- **Remote monitor**: mounts companion API; optional `strategy_monitor=` / `set_strategy_monitor()`
+- **Android scaffold**: `mobile/android-companion/` Kotlin + Retrofit read-only client (GrapheneOS-friendly: no Firebase, `allowBackup=false`, cleartext limited to loopback)
+- **Examples / tests**: `examples/companion_monitor_example.py`; `tests/test_companion_q2.py`
+- **Docs**: `docs/V3.3.0_FEATURES.md` rewritten for the shipped Q2 slice
+
+### Changed
+- **MobileAppAPI**: wraps `CompanionAPI` (read-only by default); optional FCM kept but webhook preferred
+- **Version**: Package/app bumped to **3.3.0**
+
 ## [3.2.5] - 2026-10-24
 
 ### Added

@@ -7,6 +7,7 @@ from .cloud_sync import CloudSyncManager
 from .remote_monitor import RemoteMonitorServer
 from .api_server import APIServer, WebSocketServer
 from .mobile_api import MobileAppAPI, PushNotificationService
+from .companion_api import CompanionAPI, WebhookNotifier
 from .security import SecurityManager, RateLimiter
 from .api_client import APIClient, WebSocketClient
 from .error_handler import CloudErrorHandler, CloudHealthMonitor, retry_call
@@ -19,6 +20,8 @@ __all__ = [
     'WebSocketServer',
     'MobileAppAPI',
     'PushNotificationService',
+    'CompanionAPI',
+    'WebhookNotifier',
     'SecurityManager',
     'RateLimiter',
     'APIClient',

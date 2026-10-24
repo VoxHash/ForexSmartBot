@@ -1,47 +1,51 @@
 """
-Example: Mobile App Integration
-Demonstrates how to integrate with mobile app using push notifications.
+Example: Mobile companion (read-only) + optional webhook alerts.
+
+Prefer CompanionAPI / RemoteMonitorServer companion routes for GrapheneOS.
+FCM remains optional and Google-dependent.
 """
 
-from forexsmartbot.cloud.mobile_api import MobileAppAPI, PushNotificationService
-from flask import Flask
+from __future__ import annotations
+
 import os
 
-def main():
-    # Initialize Flask app
+from flask import Flask
+
+from forexsmartbot.cloud.auth_utils import generate_api_token
+from forexsmartbot.cloud.mobile_api import MobileAppAPI, PushNotificationService
+
+
+def main() -> None:
     app = Flask(__name__)
-    
-    # Initialize mobile API
-    mobile_api = MobileAppAPI(app=app)
-    
-    # Initialize push notification service
-    fcm_key = os.getenv('FCM_SERVER_KEY', '')
-    push_service = PushNotificationService(fcm_server_key=fcm_key)
-    mobile_api.push_notification_service = push_service
-    
-    # Register a device token (in real app, this would come from mobile app)
-    device_token = "DEVICE_FCM_TOKEN"
-    push_service.register_device(device_token)
-    
-    # Example: Send trade alert
-    push_service.send_trade_alert(
-        trade_type="Open",
-        symbol="EURUSD",
-        price=1.1050,
-        pnl=50.0
-    )
-    
-    # Example: Send general alert
-    push_service.send_alert(
-        alert_type="Risk Warning",
-        message="Maximum drawdown threshold reached"
-    )
-    
-    # Start Flask app
-    print("Mobile API server starting on http://127.0.0.1:5000")
-    print("Mobile app endpoints available at /api/v1/mobile/*")
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    api_key = os.getenv("API_KEY") or generate_api_token()
 
-if __name__ == '__main__':
+    mobile = MobileAppAPI(
+        app=app,
+        api_key=api_key,
+        require_api_key=True,
+        allow_control=False,
+        portfolio_provider=lambda: {
+            "balance": 10000.0,
+            "equity": 10000.0,
+            "positions": [],
+            "trades": [],
+            "status": "connected",
+        },
+    )
+
+    push = PushNotificationService(fcm_server_key=os.getenv("FCM_SERVER_KEY", ""))
+    mobile.push_notification_service = push
+
+    # GrapheneOS path: HTTPS webhook instead of FCM device tokens
+    webhook = os.getenv("COMPANION_WEBHOOK_URL", "")
+    if webhook:
+        push.register_webhook(webhook)
+
+    print("Companion health: GET /api/v1/companion/health")
+    print("Companion portfolio (auth): GET /api/v1/companion/portfolio")
+    print(f"API key: {api_key}")
+    app.run(host="127.0.0.1", port=5000, debug=False)
+
+
+if __name__ == "__main__":
     main()
-

@@ -29,6 +29,24 @@ class StrategyHealth:
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize health for REST / dashboard clients."""
+        return {
+            "strategy_name": self.strategy_name,
+            "status": self.status.value,
+            "last_signal_time": (
+                self.last_signal_time.isoformat() if self.last_signal_time else None
+            ),
+            "signal_count": self.signal_count,
+            "error_count": self.error_count,
+            "execution_time_avg": self.execution_time_avg,
+            "execution_time_max": self.execution_time_max,
+            "memory_usage_mb": self.memory_usage_mb,
+            "warnings": list(self.warnings),
+            "errors": list(self.errors),
+            "performance": self.signal_count - (self.error_count * 2),
+        }
+
 
 class StrategyMonitor:
     """Monitor strategy execution in real-time."""
@@ -159,17 +177,23 @@ class StrategyMonitor:
         Returns:
             Dictionary mapping strategy names to status dictionaries with 'status' and 'performance' keys
         """
-        statuses = {}
-        for strategy_name, health in self.strategies.items():
-            # Calculate performance as a simple metric (signal count - error count)
-            performance = health.signal_count - (health.error_count * 2)
-            
-            statuses[strategy_name] = {
-                'status': health.status.value,
-                'performance': performance,
-                'signal_count': health.signal_count,
-                'error_count': health.error_count,
-                'last_signal_time': health.last_signal_time.isoformat() if health.last_signal_time else None
-            }
-        return statuses
+        return {
+            strategy_name: health.to_dict()
+            for strategy_name, health in self.strategies.items()
+        }
+
+    def get_dashboard_payload(self) -> Dict[str, Any]:
+        """Aggregate strategy health for web / companion dashboards."""
+        strategies = self.get_strategy_statuses()
+        status_counts: Dict[str, int] = {}
+        for item in strategies.values():
+            key = str(item.get("status", "unknown"))
+            status_counts[key] = status_counts.get(key, 0) + 1
+        return {
+            "strategies": strategies,
+            "summary": {
+                "total": len(strategies),
+                "by_status": status_counts,
+            },
+        }
 

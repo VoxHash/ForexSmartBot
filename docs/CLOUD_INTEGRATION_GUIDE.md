@@ -1,4 +1,4 @@
-# Cloud Integration Guide - ForexSmartBot v3.2.5
+# Cloud Integration Guide - ForexSmartBot v3.3.0
 
 ## Quick Start
 
@@ -42,18 +42,23 @@ from forexsmartbot.cloud.remote_monitor import RemoteMonitorServer
 from forexsmartbot.cloud.auth_utils import generate_api_token
 
 api_key = os.getenv('API_KEY') or generate_api_token()
+from forexsmartbot.monitoring.strategy_monitor import StrategyMonitor
+
+sm = StrategyMonitor()
 monitor = RemoteMonitorServer(
     host='127.0.0.1',
     port=8080,
     api_key=api_key,  # required for authenticated status/control
+    strategy_monitor=sm,
 )
 monitor.start()
 
 # Public health (no auth): http://127.0.0.1:8080/healthz
-# Dashboard: http://127.0.0.1:8080  (paste API key in the page)
-# Authenticated status:
+# Dashboard: http://127.0.0.1:8080  (paste API key; Strategy Health table)
+# Authenticated status / strategies / companion:
 #   curl -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8080/api/v1/status
-#   curl -H "X-API-Key: $API_KEY" http://127.0.0.1:8080/api/v1/status
+#   curl -H "X-API-Key: $API_KEY" http://127.0.0.1:8080/api/v1/strategies
+#   curl -H "X-API-Key: $API_KEY" http://127.0.0.1:8080/api/v1/companion/portfolio
 ```
 
 Non-loopback binds require a strong `API_KEY` (16+ chars) unless
@@ -154,22 +159,21 @@ def update_real_time_data(self):
         self.cloud_sync.sync_portfolio(portfolio_data)
 ```
 
-## Mobile App Integration
+## Mobile Companion Integration
 
-### Push Notifications
+Read-only companion endpoints are mounted on the remote monitor (`/api/v1/companion/*`).
+Android scaffold: `mobile/android-companion/`. Prefer HTTPS webhooks on GrapheneOS; FCM is optional.
 
 ```python
 from forexsmartbot.cloud.mobile_api import PushNotificationService
+from forexsmartbot.cloud.companion_api import CompanionAPI
 
-push_service = PushNotificationService(fcm_server_key='YOUR_FCM_KEY')
+push_service = PushNotificationService()
+push_service.register_webhook('https://notify.example/fsb')  # no Google required
+push_service.send_alert('Risk Warning', 'Max drawdown threshold reached')
 
-# Send trade alert
-def on_trade_opened(symbol, price, pnl):
-    push_service.send_trade_alert('Open', symbol, price, pnl)
-
-# Send risk alert
-def on_risk_warning(message):
-    push_service.send_alert('Risk Warning', message)
+# Standalone companion (also available via RemoteMonitorServer):
+# companion = CompanionAPI(api_key='...', portfolio_provider=...)
 ```
 
 ## API Client Usage
@@ -299,6 +303,6 @@ print(f"Cloud API Status: {status['status']}")
 
 ---
 
-**Version**: 3.2.5  
+**Version**: 3.3.0  
 **Last Updated**: October 2026
 

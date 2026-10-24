@@ -118,6 +118,15 @@ setup-github-auth.sh
 push-updates-final.sh
 push-all.sh
 
+# Android companion local builds
+mobile/android-companion/.gradle/
+mobile/android-companion/**/build/
+mobile/android-companion/local.properties
+mobile/android-companion/.idea/
+*.apk
+*.aab
+*.iml
+
 # Python Distribution / packaging
 build/
 develop-eggs/

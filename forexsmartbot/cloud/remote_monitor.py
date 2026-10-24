@@ -10,7 +10,7 @@ import os
 from collections import deque
 from datetime import datetime
 from threading import Thread
-from typing import Callable, Deque, Dict, List, Optional
+from typing import Any, Callable, Deque, Dict, List, Optional
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template_string, request
@@ -24,6 +24,7 @@ from .auth_utils import (
     resolve_api_key,
     validate_server_credentials,
 )
+from .companion_api import CompanionAPI
 
 load_dotenv(override=False)
 
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class RemoteMonitorServer:
-    """Web-based remote monitoring server."""
+    """Web-based remote monitoring server with strategy health + companion API."""
 
     def __init__(
         self,
@@ -41,6 +42,8 @@ class RemoteMonitorServer:
         *,
         max_alerts: int = 100,
         require_api_key: Optional[bool] = None,
+        strategy_monitor: Optional[Any] = None,
+        enable_companion: bool = True,
     ):
         """
         Initialize remote monitor server.
@@ -51,6 +54,8 @@ class RemoteMonitorServer:
             api_key: API key for authentication (defaults to API_KEY env var)
             max_alerts: Ring-buffer size for recent alerts
             require_api_key: Force auth even on localhost when True
+            strategy_monitor: Optional StrategyMonitor for health dashboard
+            enable_companion: Mount read-only /api/v1/companion/* routes
         """
         self.host = host or os.getenv("REMOTE_MONITOR_HOST", "127.0.0.1")
         self.port = port or int(os.getenv("REMOTE_MONITOR_PORT", "8080"))
@@ -74,8 +79,12 @@ class RemoteMonitorServer:
         self.alert_callbacks: List[Callable] = []
         self.control_callbacks: Dict[str, Callable] = {}
         self._alerts: Deque[Dict] = deque(maxlen=max_alerts)
+        self.strategy_monitor = strategy_monitor
+        self.companion: Optional[CompanionAPI] = None
 
         self.setup_routes()
+        if enable_companion:
+            self._mount_companion()
         self.server_thread = None
         self.running = False
         self.started_at: Optional[datetime] = None
@@ -175,6 +184,61 @@ class RemoteMonitorServer:
             alert = self.push_alert(level, message, data.get("details") or {})
             return jsonify({"alert": alert}), 201
 
+        @self.app.route("/api/v1/strategies", methods=["GET"])
+        def get_strategies():
+            """Strategy health dashboard payload (authenticated)."""
+            denied = self._auth_response()
+            if denied:
+                return denied
+            return jsonify(self._strategies_payload())
+
+        @self.app.route("/api/v1/strategies/<strategy_name>", methods=["GET"])
+        def get_strategy(strategy_name: str):
+            """Single strategy health (authenticated)."""
+            denied = self._auth_response()
+            if denied:
+                return denied
+            payload = self._strategies_payload()
+            strategies = payload.get("strategies") or {}
+            if strategy_name not in strategies:
+                return jsonify({"error": "strategy not found"}), 404
+            return jsonify({"strategy": strategies[strategy_name], "timestamp": payload.get("timestamp")})
+
+    def _mount_companion(self) -> None:
+        """Mount read-only companion API on the same Flask app."""
+        self.companion = CompanionAPI(
+            app=self.app,
+            api_key=self.api_key,
+            require_api_key=self.require_api_key,
+            portfolio_provider=lambda: self.trading_data,
+            alerts_provider=self._get_recent_alerts,
+            strategies_provider=self._strategies_payload,
+            allow_control=False,
+        )
+
+    def set_strategy_monitor(self, monitor: Any) -> None:
+        """Attach a StrategyMonitor for /api/v1/strategies and companion clients."""
+        self.strategy_monitor = monitor
+
+    def _strategies_payload(self) -> Dict:
+        """Build strategy health JSON for dashboard / companion."""
+        if self.strategy_monitor is not None and hasattr(
+            self.strategy_monitor, "get_dashboard_payload"
+        ):
+            payload = self.strategy_monitor.get_dashboard_payload()
+        elif self.strategy_monitor is not None and hasattr(
+            self.strategy_monitor, "get_strategy_statuses"
+        ):
+            strategies = self.strategy_monitor.get_strategy_statuses()
+            payload = {
+                "strategies": strategies,
+                "summary": {"total": len(strategies), "by_status": {}},
+            }
+        else:
+            payload = {"strategies": {}, "summary": {"total": 0, "by_status": {}}}
+        payload["timestamp"] = datetime.now().isoformat()
+        return payload
+
     def _auth_response(self):
         """Return 401 response tuple when auth fails, else None."""
         if not self._check_auth():
@@ -243,11 +307,17 @@ class RemoteMonitorServer:
         .btn-start { background: #4CAF50; color: white; }
         .btn-stop { background: #f44336; color: white; }
         input { padding: 8px; margin: 5px 0; width: 280px; background: #3d3d3d; color: #fff; border: 1px solid #555; }
+        .health-healthy { color: #4CAF50; }
+        .health-warning { color: #FFC107; }
+        .health-critical { color: #f44336; }
+        .health-unknown { color: #9e9e9e; }
+        .badge { display:inline-block; padding:2px 8px; border-radius:4px; background:#444; font-size:12px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>ForexSmartBot Remote Monitor</h1>
+        <p style="color:#aaa;">Strategy health dashboard + read-only companion API at <code>/api/v1/companion/*</code></p>
 
         <div class="status-card">
             <h2>API Key</h2>
@@ -280,6 +350,28 @@ class RemoteMonitorServer:
                 <div class="data-label">Total Trades</div>
                 <div class="data-value" id="trades-count">0</div>
             </div>
+            <div class="data-item">
+                <div class="data-label">Strategies</div>
+                <div class="data-value" id="strategies-count">0</div>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <h2>Strategy Health</h2>
+            <div id="strategy-summary" style="color:#aaa;margin-bottom:10px;"></div>
+            <table id="strategies-table">
+                <thead>
+                    <tr>
+                        <th>Strategy</th>
+                        <th>Status</th>
+                        <th>Signals</th>
+                        <th>Errors</th>
+                        <th>Avg ms</th>
+                        <th>Last signal</th>
+                    </tr>
+                </thead>
+                <tbody id="strategies-body"></tbody>
+            </table>
         </div>
 
         <div class="status-card">
@@ -321,6 +413,49 @@ class RemoteMonitorServer:
             sessionStorage.setItem('fsb_api_key', key);
             document.getElementById('auth-hint').textContent = key ? 'Key saved for this session' : 'Key cleared';
             updateStatus();
+        }
+
+        function statusClass(status) {
+            const s = (status || 'unknown').toLowerCase();
+            if (s === 'healthy') return 'health-healthy';
+            if (s === 'warning') return 'health-warning';
+            if (s === 'critical') return 'health-critical';
+            return 'health-unknown';
+        }
+
+        function updateStrategies() {
+            fetch('/api/v1/strategies', {headers: authHeaders()})
+                .then(async r => {
+                    if (r.status === 401) throw new Error('unauthorized');
+                    return r.json();
+                })
+                .then(data => {
+                    const strategies = data.strategies || {};
+                    const names = Object.keys(strategies);
+                    document.getElementById('strategies-count').textContent = names.length;
+                    const by = (data.summary && data.summary.by_status) || {};
+                    document.getElementById('strategy-summary').textContent =
+                        'Total ' + names.length + ' | ' +
+                        Object.keys(by).map(k => k + '=' + by[k]).join(' · ');
+                    const tbody = document.getElementById('strategies-body');
+                    if (!names.length) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">No strategies registered — attach StrategyMonitor</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = names.map(name => {
+                        const s = strategies[name] || {};
+                        const st = s.status || 'unknown';
+                        return '<tr>' +
+                            '<td>' + (s.strategy_name || name) + '</td>' +
+                            '<td class="' + statusClass(st) + '"><span class="badge">' + st + '</span></td>' +
+                            '<td>' + (s.signal_count || 0) + '</td>' +
+                            '<td>' + (s.error_count || 0) + '</td>' +
+                            '<td>' + Number(s.execution_time_avg || 0).toFixed(2) + '</td>' +
+                            '<td>' + (s.last_signal_time || '—') + '</td>' +
+                            '</tr>';
+                    }).join('');
+                })
+                .catch(() => {});
         }
 
         function updateStatus() {
@@ -365,6 +500,8 @@ class RemoteMonitorServer:
                     `).join('');
                 })
                 .catch(err => console.error('Error:', err));
+
+            updateStrategies();
         }
 
         function startTrading() {
