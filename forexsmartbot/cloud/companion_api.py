@@ -40,6 +40,32 @@ PAIRING_TTL_SECONDS = 300
 ALLOWED_ACTIONS = frozenset({"start_trading", "stop_trading", "pause_trading"})
 
 
+def normalize_cert_pin(pin: Optional[str]) -> str:
+    """Normalize SPKI pin to ``sha256/...`` form (empty string if unset)."""
+    value = (pin or "").strip()
+    if not value:
+        return ""
+    if value.startswith("sha256/"):
+        return value
+    return f"sha256/{value}"
+
+
+def resolve_companion_cert_pin(explicit: Optional[str] = None) -> str:
+    """
+    Production cert-pin default for pairing QR payloads.
+
+    Order: explicit arg → ``FSB_COMPANION_CERT_PIN`` → ``COMPANION_CERT_PIN``.
+    """
+    import os
+
+    if explicit and str(explicit).strip():
+        return normalize_cert_pin(str(explicit))
+    return normalize_cert_pin(
+        os.getenv("FSB_COMPANION_CERT_PIN") or os.getenv("COMPANION_CERT_PIN") or ""
+    )
+
+
+
 class CompanionActionQueue:
     """Pending high-level companion actions awaiting host approve/reject."""
 
@@ -282,7 +308,7 @@ class CompanionAPI:
         self.require_api_key = require_api_key
         self.allow_control = allow_control
         self.public_base_url = (public_base_url or "").rstrip("/")
-        self.pin_sha256 = (pin_sha256 or "").strip()
+        self.pin_sha256 = resolve_companion_cert_pin(pin_sha256)
         self.url_prefix = url_prefix.rstrip("/") or "/api/v1/companion"
 
         self._portfolio_provider = portfolio_provider or (lambda: {})
@@ -480,7 +506,9 @@ class CompanionAPI:
                 or self.public_base_url
                 or request.host_url.rstrip("/")
             ).rstrip("/")
-            pin = str(data.get("pin_sha256") or self.pin_sha256 or "").strip()
+            pin = resolve_companion_cert_pin(
+                str(data.get("pin_sha256") or self.pin_sha256 or "").strip() or None
+            )
             session = self.pairing_store.create(
                 base_url=base, api_key=self.api_key, pin_sha256=pin or None
             )

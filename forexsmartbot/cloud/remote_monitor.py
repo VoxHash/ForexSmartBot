@@ -222,7 +222,13 @@ class RemoteMonitorServer:
 
     def _mount_companion(self) -> None:
         """Mount companion API on the same Flask app."""
-        base = f"http://{self.host}:{self.port}"
+        from .companion_api import resolve_companion_cert_pin
+
+        public = (
+            os.getenv("FSB_PUBLIC_BASE_URL")
+            or os.getenv("COMPANION_PUBLIC_BASE_URL")
+            or f"http://{self.host}:{self.port}"
+        ).rstrip("/")
         self.companion = CompanionAPI(
             app=self.app,
             api_key=self.api_key,
@@ -232,7 +238,8 @@ class RemoteMonitorServer:
             strategies_provider=self._strategies_payload,
             history_provider=lambda name, limit: self._history_payload(name, limit),
             allow_control=False,
-            public_base_url=base,
+            public_base_url=public,
+            pin_sha256=resolve_companion_cert_pin(),
         )
 
     def set_strategy_monitor(self, monitor: Any) -> None:
@@ -387,13 +394,34 @@ class RemoteMonitorServer:
 <body>
     <div class="container">
         <h1>ForexSmartBot Remote Monitor</h1>
-        <p style="color:#aaa;">Strategy health + history charts + companion pairing / approve-reject at <code>/api/v1/companion/*</code></p>
+        <p style="color:#aaa;">Strategy health + history charts + companion pairing / approve-reject at <code>/api/v1/companion/*</code> · multi-host health poll</p>
 
         <div class="status-card">
             <h2>API Key</h2>
             <input id="api-key" type="password" placeholder="Bearer / X-API-Key token" />
             <button class="btn" onclick="saveKey()">Save</button>
             <span id="auth-hint" style="color:#aaa;margin-left:8px;"></span>
+        </div>
+
+        <div class="status-card">
+            <h2>Multi-Host Monitors</h2>
+            <p style="color:#aaa;">Poll additional remote-monitor hosts (browser-side). Keys stay in this browser session only.</p>
+            <input id="remote-host-url" type="text" placeholder="https://host:8080" style="width:360px;" />
+            <input id="remote-host-key" type="password" placeholder="API key (optional)" style="width:200px;" />
+            <button class="btn" onclick="addRemoteHost()">Add host</button>
+            <button class="btn" onclick="refreshRemoteHosts()">Refresh</button>
+            <table id="remote-hosts-table" style="margin-top:12px;">
+                <thead>
+                    <tr>
+                        <th>Host</th>
+                        <th>Health</th>
+                        <th>Version</th>
+                        <th>Strategies</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="remote-hosts-body"></tbody>
+            </table>
         </div>
 
         <div class="status-card">
@@ -501,6 +529,83 @@ class RemoteMonitorServer:
             sessionStorage.setItem('fsb_api_key', key);
             document.getElementById('auth-hint').textContent = key ? 'Key saved for this session' : 'Key cleared';
             updateStatus();
+        }
+
+        function loadRemoteHosts() {
+            try {
+                return JSON.parse(localStorage.getItem('fsb_remote_hosts') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveRemoteHosts(hosts) {
+            localStorage.setItem('fsb_remote_hosts', JSON.stringify(hosts || []));
+        }
+
+        function addRemoteHost() {
+            const url = document.getElementById('remote-host-url').value.trim().replace(/\\/$/, '');
+            const key = document.getElementById('remote-host-key').value.trim();
+            if (!url) return alert('Enter a host base URL');
+            const hosts = loadRemoteHosts().filter(h => h.url !== url);
+            hosts.push({url: url, key: key});
+            saveRemoteHosts(hosts);
+            document.getElementById('remote-host-url').value = '';
+            document.getElementById('remote-host-key').value = '';
+            refreshRemoteHosts();
+        }
+
+        function removeRemoteHost(url) {
+            saveRemoteHosts(loadRemoteHosts().filter(h => h.url !== url));
+            refreshRemoteHosts();
+        }
+
+        function refreshRemoteHosts() {
+            const hosts = loadRemoteHosts();
+            const tbody = document.getElementById('remote-hosts-body');
+            if (!hosts.length) {
+                tbody.innerHTML = '<tr><td colspan="5" style="color:#888;">No remote hosts — add a monitor URL</td></tr>';
+                return;
+            }
+            tbody.innerHTML = hosts.map(h =>
+                '<tr data-url="' + h.url + '">' +
+                '<td>' + h.url + '</td>' +
+                '<td class="host-health">…</td>' +
+                '<td class="host-version">…</td>' +
+                '<td class="host-strats">…</td>' +
+                '<td><button class="btn btn-stop" onclick="removeRemoteHost(\\'' + h.url.replace(/'/g, '') + '\\')">Remove</button></td>' +
+                '</tr>'
+            ).join('');
+            hosts.forEach(h => {
+                const headers = {'Content-Type': 'application/json'};
+                if (h.key) {
+                    headers['Authorization'] = 'Bearer ' + h.key;
+                    headers['X-API-Key'] = h.key;
+                }
+                const row = tbody.querySelector('tr[data-url="' + h.url + '"]');
+                if (!row) return;
+                fetch(h.url + '/api/v1/health').then(r => r.json()).then(health => {
+                    row.querySelector('.host-health').textContent = health.status || 'ok';
+                    row.querySelector('.host-health').className = 'host-health ' +
+                        (health.status === 'healthy' ? 'health-healthy' : 'health-warning');
+                    row.querySelector('.host-version').textContent = health.version || '—';
+                }).catch(() => {
+                    row.querySelector('.host-health').textContent = 'unreachable';
+                    row.querySelector('.host-health').className = 'host-health health-critical';
+                    row.querySelector('.host-version').textContent = '—';
+                    row.querySelector('.host-strats').textContent = '—';
+                });
+                fetch(h.url + '/api/v1/strategies', {headers: headers}).then(async r => {
+                    if (!r.ok) throw new Error('auth');
+                    return r.json();
+                }).then(data => {
+                    const total = (data.summary && data.summary.total) ||
+                        Object.keys(data.strategies || {}).length;
+                    row.querySelector('.host-strats').textContent = String(total);
+                }).catch(() => {
+                    row.querySelector('.host-strats').textContent = 'n/a';
+                });
+            });
         }
 
         function statusClass(status) {
@@ -726,7 +831,9 @@ class RemoteMonitorServer:
         const existing = sessionStorage.getItem('fsb_api_key');
         if (existing) document.getElementById('api-key').value = existing;
         setInterval(updateStatus, 3000);
+        setInterval(refreshRemoteHosts, 15000);
         updateStatus();
+        refreshRemoteHosts();
     </script>
 </body>
 </html>

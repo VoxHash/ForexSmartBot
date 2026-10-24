@@ -12,11 +12,12 @@ android {
         applicationId = "dev.voxhash.fsbcompanion"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         buildConfigField("String", "DEFAULT_BASE_URL", "\"http://127.0.0.1:8080\"")
-        // Comma-separated host|sha256/BASE64 pins. Empty = pinning disabled (dev / LAN).
-        buildConfigField("String", "CERT_PINS", "\"\"")
+        // Comma-separated host|sha256/BASE64 pins. Override via -PFSB_CERT_PINS=...
+        val pins = (project.findProperty("FSB_CERT_PINS") as String?)?.trim().orEmpty()
+        buildConfigField("String", "CERT_PINS", "\"${pins.replace("\"", "\\\"")}\"")
     }
 
     buildTypes {
@@ -26,6 +27,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Production pin defaults: require FSB_CERT_PINS for release store builds.
+            // Pairing QR pin still applies when CERT_PINS is empty (LAN / self-host).
+            val releasePins = (project.findProperty("FSB_CERT_PINS") as String?)?.trim().orEmpty()
+            buildConfigField("String", "CERT_PINS", "\"${releasePins.replace("\"", "\\\"")}\"")
+        }
+        debug {
+            isMinifyEnabled = false
         }
     }
 
@@ -58,4 +66,12 @@ dependencies {
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
     // ZXing — GrapheneOS-friendly QR decode (no Play Services / ML Kit)
     implementation("com.google.zxing:core:3.5.3")
+    // Live CameraX QR (no GMS)
+    val cameraX = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraX")
+    implementation("androidx.camera:camera-camera2:$cameraX")
+    implementation("androidx.camera:camera-lifecycle:$cameraX")
+    implementation("androidx.camera:camera-view:$cameraX")
+    // Encrypted local session + portfolio cache
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }

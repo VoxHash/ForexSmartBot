@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.content.Intent
 import dev.voxhash.fsbcompanion.BuildConfig
 import dev.voxhash.fsbcompanion.api.CompanionClientFactory
 import dev.voxhash.fsbcompanion.model.ActionRequest
@@ -42,8 +43,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Compose companion: QR/paste pairing, portfolio + strategies, request stop/start
- * (host must approve). No broker keys, no Google Play Services.
+ * Compose companion: live CameraX / gallery / paste pairing, encrypted session cache,
+ * portfolio + strategies, request stop/start (host must approve). No broker keys, no GMS.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,8 +70,25 @@ private fun CompanionApp() {
     var apiKey by remember { mutableStateOf(session?.apiKey ?: "") }
     var pin by remember { mutableStateOf(session?.pinSha256 ?: "") }
     var pairingPaste by remember { mutableStateOf("") }
-    var output by remember { mutableStateOf("Paste pairing JSON or pick a QR image from the desktop dashboard.") }
+    var output by remember {
+        mutableStateOf(
+            PairingPrefs.loadPortfolioCache(context)?.let { (json, at) ->
+                "Cached snapshot ($at):\n$json"
+            } ?: "Paste pairing JSON, pick a QR image, or use live CameraX scan.",
+        )
+    }
     var busy by remember { mutableStateOf(false) }
+
+    val liveQr = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != android.app.Activity.RESULT_OK) return@rememberLauncherForActivityResult
+        val text = result.data?.getStringExtra(QrScanActivity.EXTRA_QR_TEXT)
+        if (text.isNullOrBlank()) {
+            output = "Live scan returned empty"
+        } else {
+            pairingPaste = text
+            output = "Live QR decoded — tap Redeem pairing"
+        }
+    }
 
     val pickQr = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -85,7 +103,7 @@ private fun CompanionApp() {
                         MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
                     }
                     PairingParser.decodeBitmap(bitmap)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     null
                 }
             }
@@ -108,7 +126,7 @@ private fun CompanionApp() {
     ) {
         Text("FSB Companion", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "GrapheneOS-friendly · read monitoring · host approve/reject for control",
+            "GrapheneOS-friendly · CameraX QR · encrypted cache · host approve/reject",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -122,8 +140,14 @@ private fun CompanionApp() {
             minLines = 3,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = {
+                    liveQr.launch(Intent(context, QrScanActivity::class.java))
+                },
+                enabled = !busy,
+            ) { Text("Live camera QR") }
             OutlinedButton(onClick = { pickQr.launch("image/*") }, enabled = !busy) {
-                Text("Scan QR image")
+                Text("QR image")
             }
             Button(
                 enabled = !busy && pairingPaste.isNotBlank(),
@@ -140,7 +164,7 @@ private fun CompanionApp() {
                         busy = false
                     }
                 },
-            ) { Text("Redeem pairing") }
+            ) { Text("Redeem") }
         }
 
         Text("Connection", style = MaterialTheme.typography.titleMedium)
@@ -175,7 +199,7 @@ private fun CompanionApp() {
                         val s = CompanionSession(baseUrl.trim(), apiKey.trim(), pin.trim())
                         PairingPrefs.save(context, s)
                         session = s
-                        output = refreshSnapshot(s)
+                        output = refreshSnapshot(context, s)
                         busy = false
                     }
                 },
@@ -241,7 +265,10 @@ private suspend fun redeemPairing(context: android.content.Context, raw: String)
     }
 }
 
-private suspend fun refreshSnapshot(session: CompanionSession): String {
+private suspend fun refreshSnapshot(
+    context: android.content.Context,
+    session: CompanionSession,
+): String {
     return withContext(Dispatchers.IO) {
         try {
             val api = CompanionClientFactory.create(session.baseUrl, session.apiKey, session.pinSha256)
@@ -253,7 +280,7 @@ private suspend fun refreshSnapshot(session: CompanionSession): String {
             } catch (_: Exception) {
                 null
             }
-            buildString {
+            val text = buildString {
                 appendLine("service=${health.service} v${health.version} read_only=${health.read_only}")
                 appendLine("equity=${portfolio.equity} balance=${portfolio.balance} status=${portfolio.status}")
                 appendLine("positions=${portfolio.positions_count} strategies=${strategies.summary?.total ?: 0}")
@@ -264,8 +291,15 @@ private suspend fun refreshSnapshot(session: CompanionSession): String {
                     appendLine("pending_actions=${pending.count ?: pending.pending?.size ?: 0}")
                 }
             }
+            PairingPrefs.savePortfolioCache(context, text.trim())
+            text
         } catch (e: Exception) {
-            "Error: ${e.message}"
+            val cached = PairingPrefs.loadPortfolioCache(context)
+            if (cached != null) {
+                "Offline (error: ${e.message})\nCached (${cached.second}):\n${cached.first}"
+            } else {
+                "Error: ${e.message}"
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 name: Publish to PyPI
 
+# Manual republish only. Tag pushes use release.yml (build + PyPI + GitHub Release)
+# to avoid duplicate-upload races with twine.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:

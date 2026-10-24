@@ -2,9 +2,29 @@
 
 from __future__ import annotations
 
-from forexsmartbot.cloud.companion_api import CompanionAPI, WebhookNotifier
+from forexsmartbot.cloud.companion_api import (
+    CompanionAPI,
+    WebhookNotifier,
+    normalize_cert_pin,
+    resolve_companion_cert_pin,
+)
 from forexsmartbot.cloud.remote_monitor import RemoteMonitorServer
 from forexsmartbot.monitoring.strategy_monitor import StrategyMonitor
+
+
+class TestCertPinHelpers:
+    def test_normalize_cert_pin(self):
+        assert normalize_cert_pin("") == ""
+        assert normalize_cert_pin("sha256/ABC=") == "sha256/ABC="
+        assert normalize_cert_pin("ABC=") == "sha256/ABC="
+
+    def test_resolve_from_env(self, monkeypatch):
+        monkeypatch.delenv("FSB_COMPANION_CERT_PIN", raising=False)
+        monkeypatch.delenv("COMPANION_CERT_PIN", raising=False)
+        assert resolve_companion_cert_pin(None) == ""
+        monkeypatch.setenv("FSB_COMPANION_CERT_PIN", "DEADBEEF")
+        assert resolve_companion_cert_pin(None) == "sha256/DEADBEEF"
+        assert resolve_companion_cert_pin("sha256/EXPLICIT=") == "sha256/EXPLICIT="
 
 
 class TestWebhookNotifier:
@@ -278,6 +298,34 @@ class TestStrategyHealthDashboard:
         assert "History Charts" in html
         assert "pairing/session" in html
         assert "Pending Companion Actions" in html
+        assert "Multi-Host Monitors" in html
+        assert "fsb_remote_hosts" in html
+
+    def test_companion_pin_from_env_on_monitor(self, monkeypatch):
+        monkeypatch.setenv(
+            "FSB_COMPANION_CERT_PIN",
+            "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        )
+        monkeypatch.setenv("FSB_PUBLIC_BASE_URL", "https://monitor.example")
+        monitor = RemoteMonitorServer(
+            host="127.0.0.1",
+            port=18085,
+            api_key="monitor-test-key-16",
+            require_api_key=True,
+        )
+        assert monitor.companion is not None
+        assert monitor.companion.pin_sha256.startswith("sha256/")
+        assert monitor.companion.public_base_url == "https://monitor.example"
+        client = monitor.app.test_client()
+        created = client.post(
+            "/api/v1/companion/pairing/session",
+            headers={"X-API-Key": "monitor-test-key-16"},
+            json={},
+        )
+        assert created.status_code == 201
+        payload = created.get_json()["qr_payload"]
+        assert payload["base_url"] == "https://monitor.example"
+        assert payload["pin_sha256"].startswith("sha256/")
 
     def test_strategy_history_endpoint(self):
         sm = StrategyMonitor()

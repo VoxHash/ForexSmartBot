@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.2] - 2026-10-24
+
+### Added
+- **Live CameraX QR**: Android companion `QrScanActivity` / `QrAnalyzer` (CameraX + ZXing, no GMS)
+- **Encrypted local cache**: `EncryptedSharedPreferences` for pairing session + portfolio snapshot; offline fallback
+- **Production cert-pin defaults**: host env `FSB_COMPANION_CERT_PIN` / `COMPANION_CERT_PIN`; public base `FSB_PUBLIC_BASE_URL`; Android `-PFSB_CERT_PINS`
+- **Multi-host dashboard**: remote-monitor UI polls additional host health / strategy counts (browser localStorage)
+- **Helpers**: `normalize_cert_pin` / `resolve_companion_cert_pin` in companion API
+- **Docs**: `docs/V3.3.2_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.3.2**; Android companion to **0.3.0** (versionCode 3)
+- **F-Droid metadata draft**: updated for 0.3.0
+
 ## [3.3.1] - 2026-10-24
 
 ### Added

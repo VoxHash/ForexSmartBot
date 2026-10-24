@@ -12,6 +12,8 @@ from .companion_api import (
     CompanionActionQueue,
     CompanionPairingStore,
     WebhookNotifier,
+    normalize_cert_pin,
+    resolve_companion_cert_pin,
 )
 from .security import SecurityManager, RateLimiter
 from .api_client import APIClient, WebSocketClient
@@ -29,6 +31,8 @@ __all__ = [
     'CompanionActionQueue',
     'CompanionPairingStore',
     'WebhookNotifier',
+    'normalize_cert_pin',
+    'resolve_companion_cert_pin',
     'SecurityManager',
     'RateLimiter',
     'APIClient',

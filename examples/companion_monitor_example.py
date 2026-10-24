@@ -39,7 +39,9 @@ def main() -> None:
     print(f"History:    curl -H 'Authorization: Bearer {api_key}' http://127.0.0.1:{monitor.port}/api/v1/strategies/history")
     print(f"Companion:  curl -H 'X-API-Key: {api_key}' http://127.0.0.1:{monitor.port}/api/v1/companion/portfolio")
     print(f"Pairing:    curl -X POST -H 'X-API-Key: {api_key}' http://127.0.0.1:{monitor.port}/api/v1/companion/pairing/session")
-    print("Android: mobile/android-companion Compose UI — pair via dashboard QR / paste JSON")
+    print("Android: mobile/android-companion 0.3.0 — live CameraX QR / gallery / paste; encrypted cache")
+    if os.getenv("FSB_COMPANION_CERT_PIN"):
+        print("Cert pin:  FSB_COMPANION_CERT_PIN is set (included in pairing QR)")
 
     try:
         n = 0
