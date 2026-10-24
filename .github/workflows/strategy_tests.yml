@@ -60,10 +60,13 @@ jobs:
     
     - name: Check test results
       run: |
+        set +e
         python -m forexsmartbot.testing.ci_cd_pipeline \
           --strategies SMA_Crossover RSI_Reversion \
+          --config .github/test_config.json \
           --output /dev/null
         exit_code=$?
+        set -e
         if [ $exit_code -ne 0 ]; then
           echo "Some strategies failed tests"
           exit 1
