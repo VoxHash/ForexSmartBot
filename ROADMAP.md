@@ -10,10 +10,10 @@ High-level milestones aligned with the current **3.2.x** line. See [CHANGELOG.md
 - CI workflow updates (GitHub Actions v4)
 
 ## Q4 2026
-- Fix multi-timeframe strategy registration (`IDataProvider` export / provider contract)
-- Linux-friendly optional dependencies (`win10toast` / platform markers in `requirements.txt`)
-- Expand automated tests beyond placeholder `tests/` package
-- PyPI publish parity with source install (document Python 3.10–3.12)
+- [x] Fix multi-timeframe strategy registration (`IDataProvider` via `core.interfaces`; `get_strategy('Multi_Timeframe')` works without kwargs; no `adapters.data`/`zmq` import dependency)
+- [x] Linux-friendly optional dependencies (`win10toast` / platform markers in `requirements.txt`)
+- Expand automated tests beyond placeholder `tests/` package (MTF registration covered; broader suite still open)
+- [x] PyPI publish parity with source install (document Python 3.10–3.12)
 
 ## Q1 2027
 - Advanced analytics dashboard (UI polish and live metrics)

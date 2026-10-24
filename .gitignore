@@ -284,8 +284,9 @@ strategy_test_report.md
 *_PNL*.md
 *_SELECTION*.md
 
-# Temporary Python scripts
+# Temporary Python scripts (repo suite under tests/ is tracked)
 test_*.py
+!tests/test_*.py
 update_*.py
 add_*.py
 fix_*.py

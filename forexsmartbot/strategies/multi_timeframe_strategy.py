@@ -2,30 +2,51 @@
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, Optional, List
-from ..core.interfaces import IStrategy
-from ..adapters.data import IDataProvider
+from typing import Dict, Any, Optional, List, Union
+from ..core.interfaces import IStrategy, IDataProvider
 
 
 class MultiTimeframeStrategy(IStrategy):
     """Strategy that analyzes multiple timeframes simultaneously."""
     
-    def __init__(self, base_strategy: IStrategy, timeframes: List[str] = ['1h', '4h', '1d'],
-                 timeframe_weights: Optional[Dict[str, float]] = None):
+    def __init__(
+        self,
+        base_strategy: Optional[Union[IStrategy, str]] = None,
+        timeframes: Optional[List[str]] = None,
+        timeframe_weights: Optional[Dict[str, float]] = None,
+    ):
         """
         Initialize multi-timeframe strategy.
         
         Args:
-            base_strategy: Base strategy to apply on each timeframe
+            base_strategy: Base strategy instance, registry name, or None for SMA_Crossover
             timeframes: List of timeframes to analyze (e.g., ['1h', '4h', '1d'])
             timeframe_weights: Optional weights for each timeframe (default: equal weights)
         """
-        self._base_strategy = base_strategy
-        self._timeframes = timeframes
-        self._timeframe_weights = timeframe_weights or {tf: 1.0/len(timeframes) for tf in timeframes}
-        self._name = f"Multi-Timeframe {base_strategy.name}"
+        if timeframes is None:
+            timeframes = ['1h', '4h', '1d']
+        self._base_strategy = self._resolve_base_strategy(base_strategy)
+        self._timeframes = list(timeframes)
+        self._timeframe_weights = timeframe_weights or {
+            tf: 1.0 / len(self._timeframes) for tf in self._timeframes
+        }
+        self._name = f"Multi-Timeframe {self._base_strategy.name}"
         self._data_provider = None
         self._timeframe_data = {}
+
+    @staticmethod
+    def _resolve_base_strategy(base_strategy: Optional[Union[IStrategy, str]]) -> IStrategy:
+        """Resolve base strategy from instance, registry name, or default SMA crossover."""
+        if base_strategy is None:
+            from .sma_crossover import SMACrossover
+            return SMACrossover()
+        if isinstance(base_strategy, str):
+            if base_strategy == 'Multi_Timeframe':
+                raise ValueError("Multi_Timeframe cannot wrap itself as base_strategy")
+            # Lazy import to avoid circular registry import at module load
+            from . import get_strategy
+            return get_strategy(base_strategy)
+        return base_strategy
         
     @property
     def name(self) -> str:
@@ -104,8 +125,13 @@ class MultiTimeframeStrategy(IStrategy):
         if len(df) < 2:
             return 0.0
             
-        # Use SMA crossover as trend indicator
-        if 'SMA_20' in df.columns and 'SMA_50' in df.columns:
+        # Prefer SMA_fast/SMA_slow (SMACrossover); fall back to SMA_20/SMA_50 naming
+        if 'SMA_fast' in df.columns and 'SMA_slow' in df.columns:
+            sma_fast = df['SMA_fast'].iloc[-1]
+            sma_slow = df['SMA_slow'].iloc[-1]
+            if pd.notna(sma_fast) and pd.notna(sma_slow):
+                return 1.0 if sma_fast > sma_slow else -1.0
+        elif 'SMA_20' in df.columns and 'SMA_50' in df.columns:
             sma_fast = df['SMA_20'].iloc[-1]
             sma_slow = df['SMA_50'].iloc[-1]
             if pd.notna(sma_fast) and pd.notna(sma_slow):

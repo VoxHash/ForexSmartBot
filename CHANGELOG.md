@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.2.1] - 2026-10-23
+
+### Fixed
+- **Multi_Timeframe registration**: Import `IDataProvider` from `core.interfaces` so the strategy loads without pulling `adapters.data` / `zmq`; `get_strategy('Multi_Timeframe')` defaults to `SMA_Crossover` for UI/backtest call sites; trend detection recognizes `SMA_fast`/`SMA_slow`
+
+### Added
+- **Tests**: `tests/test_multi_timeframe_strategy.py` covering registry availability, provider contract, and signal path with a real in-process `IDataProvider`
+
 ## [3.2.0] - 2026-10-05
 
 ### Added

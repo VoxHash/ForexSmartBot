@@ -110,10 +110,23 @@ RISK_LEVELS = {
 }
 
 def get_strategy(name: str, **params):
-    """Get strategy instance by name."""
+    """Get strategy instance by name.
+
+    ``Multi_Timeframe`` accepts an optional ``base_strategy`` (instance or registry
+    name). When omitted, it defaults to ``SMA_Crossover`` so UI / backtest call
+    sites can use ``get_strategy('Multi_Timeframe')`` with no extra kwargs.
+    """
     if name not in STRATEGIES:
         raise ValueError(f"Unknown strategy: {name}")
-    return STRATEGIES[name](**params)
+    cls = STRATEGIES[name]
+    if name == 'Multi_Timeframe':
+        base = params.pop('base_strategy', None)
+        if isinstance(base, str):
+            if base == 'Multi_Timeframe':
+                raise ValueError("Multi_Timeframe cannot wrap itself as base_strategy")
+            base = get_strategy(base)
+        return cls(base_strategy=base, **params)
+    return cls(**params)
 
 def list_strategies():
     """List available strategies."""
