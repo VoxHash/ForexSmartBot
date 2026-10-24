@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.2.2] - 2026-10-24
+
+### Added
+- **Live analytics dashboard**: `build_live_metrics` / `LiveMetricsSnapshot` aggregate equity, P&L, Sharpe/Sortino, drawdown, VaR/CVaR from the live `Portfolio`
+- **UI polish**: Analytics tab KPI cards + portfolio/risk tables with 5s timer refresh; main window real-time hook refreshes the dashboard
+- **Tests**: `tests/test_live_metrics.py` for empty/winning portfolios, equity sync, and card tone
+
+### Fixed
+- **Risk analytics dialog**: Loads portfolio trades (previously showed zeros when portfolio had data)
+- **PortfolioAnalytics.calculate_metrics**: Syncs equity history from `Portfolio` and restores internal state after calculation
+- **RiskAnalytics**: Lazy `scipy` import so historical VaR works without scipy installed
+- **Analytics package import**: Qt-backed widgets optional so headless/test imports succeed without PyQt6
+
 ## [3.2.1] - 2026-10-23
 
 ### Fixed

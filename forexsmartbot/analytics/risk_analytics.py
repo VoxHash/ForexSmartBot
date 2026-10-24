@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
-from scipy import stats
 from ..core.interfaces import Trade, Position
 
 
@@ -245,6 +244,12 @@ class RiskAnalytics:
     def _calculate_parametric_var(self, returns: np.ndarray,
                                  confidence_level: float) -> float:
         """Calculate VaR using parametric (variance-covariance) method."""
+        try:
+            from scipy import stats
+        except ImportError as exc:
+            raise ImportError(
+                "scipy is required for parametric VaR; use method='historical'"
+            ) from exc
         mean_return = np.mean(returns)
         std_return = np.std(returns)
         

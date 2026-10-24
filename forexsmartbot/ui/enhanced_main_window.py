@@ -2042,6 +2042,13 @@ class EnhancedMainWindow(QMainWindow):
             # Update positions display (fallback if MT4 sync didn't work)
             if not (self.broker and self.broker.is_connected()):
                 self.update_positions_display()
+
+            # Refresh live analytics dashboard when present
+            if hasattr(self, "portfolio_analytics_widget") and self.portfolio_analytics_widget:
+                try:
+                    self.portfolio_analytics_widget.set_portfolio(self.portfolio)
+                except Exception:
+                    pass
             
         except Exception as e:
             self.append_log(f"Real-time update error: {str(e)}")

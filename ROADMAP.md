@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.2.x** line. See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.2.x** line (latest **3.2.2**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -16,9 +16,9 @@ High-level milestones aligned with the current **3.2.x** line. See [CHANGELOG.md
 - [x] PyPI publish parity with source install (document Python 3.10–3.12)
 
 ## Q1 2027
-- Advanced analytics dashboard (UI polish and live metrics)
-- Strategy backtesting UI improvements
-- Remote monitoring and cloud sync hardening
+- [x] Advanced analytics dashboard (UI polish and live metrics) — live KPI cards + portfolio/risk tables (`build_live_metrics` / `PortfolioAnalyticsWidget`); risk dialog loads portfolio trades; main-window refresh hook
+- [ ] Strategy backtesting UI improvements
+- [ ] Remote monitoring and cloud sync hardening
 
 ## Q2 2027
 - Mobile monitoring companion (read-only portfolio/alerts)

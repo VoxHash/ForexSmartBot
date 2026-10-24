@@ -284,20 +284,29 @@ class PortfolioAnalytics:
         Calculate portfolio metrics (alias for get_performance_summary for compatibility).
         
         Args:
-            portfolio: Optional portfolio object (currently unused, kept for compatibility)
+            portfolio: Optional portfolio object; when provided, trades and equity
+                history are loaded for the calculation.
             
         Returns:
             Dictionary of performance metrics
         """
-        # If portfolio is provided and has trades, use them
-        if portfolio and hasattr(portfolio, 'trades') and portfolio.trades:
-            # Temporarily use portfolio's trades
-            original_trades = self.trades
-            self.trades = portfolio.trades
-            metrics = self.get_performance_summary()
+        if portfolio is None:
+            return self.get_performance_summary()
+
+        original_trades = self.trades
+        original_equity = self.equity_curve
+        try:
+            if hasattr(portfolio, "trades"):
+                self.trades = list(portfolio.trades)
+            timestamps = getattr(portfolio, "timestamps", None)
+            equity_history = getattr(portfolio, "equity_history", None)
+            if timestamps is not None and equity_history is not None:
+                ts = list(timestamps)
+                eq = list(equity_history)
+                n = min(len(ts), len(eq))
+                self.equity_curve = list(zip(ts[:n], eq[:n]))
+            return self.get_performance_summary()
+        finally:
             self.trades = original_trades
-            return metrics
-        
-        # Otherwise use internal trades
-        return self.get_performance_summary()
+            self.equity_curve = original_equity
 

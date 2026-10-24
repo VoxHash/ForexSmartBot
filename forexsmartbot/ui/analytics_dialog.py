@@ -86,16 +86,32 @@ class AnalyticsDialog(QDialog):
     def update_portfolio_metrics(self, portfolio=None):
         """Update portfolio metrics table."""
         try:
-            metrics = self.analytics.calculate_metrics(portfolio)
-            
-            if not metrics:
+            from ..analytics.live_metrics import build_live_metrics
+
+            snapshot = build_live_metrics(portfolio)
+            metrics = {
+                "equity": snapshot.equity,
+                "balance": snapshot.balance,
+                "realized_pnl": snapshot.realized_pnl,
+                "unrealized_pnl": snapshot.unrealized_pnl,
+                "daily_pnl": snapshot.daily_pnl,
+                "total_trades": snapshot.total_trades,
+                "win_rate": snapshot.win_rate,
+                "profit_factor": snapshot.profit_factor,
+                "sharpe_ratio": snapshot.sharpe_ratio,
+                "sortino_ratio": snapshot.sortino_ratio,
+                "max_drawdown": snapshot.max_drawdown,
+                "max_drawdown_pct": snapshot.max_drawdown_pct,
+            }
+
+            if snapshot.total_trades == 0 and snapshot.open_positions == 0:
                 self.metrics_table.setRowCount(1)
                 self.metrics_table.setItem(0, 0, QTableWidgetItem("No data"))
                 self.metrics_table.setItem(0, 1, QTableWidgetItem("No trades available"))
                 return
-            
+
             self.metrics_table.setRowCount(len(metrics))
-            
+
             for i, (key, value) in enumerate(metrics.items()):
                 self.metrics_table.setItem(i, 0, QTableWidgetItem(str(key).replace('_', ' ').title()))
                 if isinstance(value, float):
@@ -134,24 +150,22 @@ class AnalyticsDialog(QDialog):
         self.update_risk_metrics(portfolio)
     
     def update_risk_metrics(self, portfolio=None):
-        """Update risk metrics table."""
+        """Update risk metrics table from portfolio trades when available."""
         try:
-            # Calculate VaR
-            var_result = self.risk_analytics.calculate_var(confidence_level=0.95)
-            
-            # Calculate CVaR
-            cvar_result = self.risk_analytics.calculate_cvar(confidence_level=0.95)
-            
-            # Combine metrics
+            from ..analytics.live_metrics import build_live_metrics
+
+            snapshot = build_live_metrics(portfolio)
             metrics = {
-                'VaR (95%)': var_result.get('var', 0.0),
-                'CVaR (95%)': cvar_result.get('cvar', 0.0),
-                'Max Drawdown': var_result.get('max_drawdown', 0.0),
-                'Volatility': var_result.get('volatility', 0.0)
+                "VaR (95%)": snapshot.var_95,
+                "CVaR (95%)": snapshot.cvar_95,
+                "Max Drawdown": snapshot.max_drawdown,
+                "Max Drawdown %": snapshot.max_drawdown_pct,
+                "Current Drawdown %": snapshot.current_drawdown,
+                "Volatility": snapshot.volatility,
             }
-            
+
             self.risk_table.setRowCount(len(metrics))
-            
+
             for i, (key, value) in enumerate(metrics.items()):
                 self.risk_table.setItem(i, 0, QTableWidgetItem(key))
                 if isinstance(value, float):
