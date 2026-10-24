@@ -52,6 +52,7 @@ class StrategySandbox:
         """
         # Reset sandbox
         self.broker = PaperBroker(self.initial_balance)
+        self.broker.connect()
         self.portfolio = Portfolio(self.initial_balance)
         
         positions = {}
@@ -127,13 +128,19 @@ class StrategySandbox:
                                     })
                                     tp = current_price * 1.04  # Default 4% TP
                         
-                        # Open position
-                        self.broker.open_position(symbol, signal, size, current_price, sl, tp)
+                        # Open position via current PaperBroker API
+                        quantity = size / current_price if current_price else 0.0
+                        self.broker.submit_order(symbol, signal, quantity, sl, tp)
+                        self.broker.update_position(
+                            symbol, signal, quantity, current_price, current_price
+                        )
                         positions[symbol] = {
                             'side': signal,
                             'entry_price': current_price,
-                            'size': size,
-                            'entry_time': datetime.now()
+                            'size': quantity,
+                            'entry_time': datetime.now(),
+                            'stop_loss': sl,
+                            'take_profit': tp,
                         }
                 
                 # Check exit conditions
