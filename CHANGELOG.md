@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Tests**: `tests/test_multi_timeframe_strategy.py` covering registry availability, provider contract, and signal path with a real in-process `IDataProvider`
+- **Tests**: Broader automated suite for strategy registry / SMA·Breakout·RSI paths, `native_indicators` NumPy fallback, `RiskManager`/`RiskEngine`, and `AppConfig` env loading (`tests/test_strategies.py`, `test_native_indicators.py`, `test_risk.py`, `test_config.py`)
 
 ## [3.2.0] - 2026-10-05
 
