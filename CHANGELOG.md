@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI**: Install path prefers TA-Lib binary wheels (`--only-binary=:all:`) and continues without TA-Lib when no wheel exists (fixes Ubuntu/macOS Python 3.10 source-build failures)
 - **Strategy Tests**: Skip heavy ML imports via `FSB_SKIP_HEAVY_ML` to avoid TensorFlow SIGSEGV (exit 139) on CPU runners; validate_installation isolates TF/torch checks in a subprocess
 - **Package**: Soft-optional `talib` import in TradingView chart; GPU utils skip TF/torch when `FSB_SKIP_HEAVY_ML` is set
+- **pyproject.toml**: Pin `mplfinance>=0.12.10b0` (PEP 440: `>=0.12.10` rejects the published `0.12.10b0` wheel)
 
 ### Changed
 - **pyproject.toml**: TA-Lib removed from hard dependencies; optional extras `talib`, `ml`, `remote`, `full`
