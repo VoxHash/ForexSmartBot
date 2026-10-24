@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.2.3] - 2026-10-24
+
+### Fixed
+- **CI / Strategy Tests**: Core `requirements.txt` no longer hard-requires TA-Lib or TensorFlow/PyTorch (moved to `requirements-optional.txt` and extras `talib` / `ml` / `remote`)
+- **CI**: Install path prefers TA-Lib binary wheels (`--only-binary=:all:`) and continues without TA-Lib when no wheel exists (fixes Ubuntu/macOS Python 3.10 source-build failures)
+- **Strategy Tests**: Skip heavy ML imports via `FSB_SKIP_HEAVY_ML` to avoid TensorFlow SIGSEGV (exit 139) on CPU runners; validate_installation isolates TF/torch checks in a subprocess
+- **Package**: Soft-optional `talib` import in TradingView chart; GPU utils skip TF/torch when `FSB_SKIP_HEAVY_ML` is set
+
+### Changed
+- **pyproject.toml**: TA-Lib removed from hard dependencies; optional extras `talib`, `ml`, `remote`, `full`
+
 ## [3.2.2] - 2026-10-24
 
 ### Added

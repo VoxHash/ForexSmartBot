@@ -18,7 +18,10 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QPalette, QColor
 import mplfinance as mpf
 from mplfinance.original_flavor import candlestick_ohlc
-import talib
+try:
+    import talib  # optional; chart uses mplfinance/NumPy when absent
+except ImportError:
+    talib = None
 
 
 class TradingViewChart(QWidget):

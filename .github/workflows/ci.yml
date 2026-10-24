@@ -32,10 +32,14 @@ jobs:
           ${{ runner.os }}-pip-
           
     - name: Install dependencies
+      env:
+        FSB_SKIP_HEAVY_ML: "1"
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-cov black ruff mypy
+        pip install -e ".[dev]"
+        # Prefer prebuilt TA-Lib wheels; never block CI on source builds
+        pip install "TA-Lib>=0.6.7" --only-binary=:all: || echo "TA-Lib binary wheel unavailable; continuing without it"
         
     - name: Lint with ruff
       continue-on-error: true
@@ -53,6 +57,8 @@ jobs:
         black --check forexsmartbot/ tests/ || true
         
     - name: Test with pytest
+      env:
+        FSB_SKIP_HEAVY_ML: "1"
       run: |
         pytest tests/ --cov=forexsmartbot --cov-report=xml --cov-report=term-missing -v
       continue-on-error: true

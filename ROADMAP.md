@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.2.x** line (latest **3.2.2**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.2.x** line (latest **3.2.3**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test

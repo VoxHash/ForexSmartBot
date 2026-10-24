@@ -1,0 +1,24 @@
+# Optional extras (not required for core strategies, UI, or CI)
+# Install: pip install -r requirements-optional.txt
+
+# Technical analysis (prefer binary wheel; skip if none for your platform)
+TA-Lib>=0.6.7
+
+# Deep learning / ML strategies (can segfault on some CPU-only runners)
+tensorflow>=2.15.0
+torch>=2.1.0
+transformers>=4.35.0
+gymnasium>=0.29.0
+stable-baselines3>=2.2.0
+numba>=0.59.0
+
+# Remote monitoring / API surface
+flask>=3.0.0
+flask-cors>=4.0.0
+flask-limiter>=3.5.0
+websockets>=12.0
+pyjwt>=2.8.0
+
+# GPU acceleration (optional - requires CUDA toolkit)
+# cupy-cuda12x>=12.0.0
+# cupy-cuda11x>=11.0.0

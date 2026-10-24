@@ -18,6 +18,9 @@ jobs:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
     
+    env:
+      FSB_SKIP_HEAVY_ML: "1"
+    
     steps:
     - uses: actions/checkout@v4
     
@@ -29,7 +32,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        # Core only — no TensorFlow/CUDA (avoids exit 139 on CPU runners)
         pip install -r requirements.txt
+        pip install -e .
+        pip install "TA-Lib>=0.6.7" --only-binary=:all: || echo "TA-Lib binary wheel unavailable; continuing without it"
     
     - name: Validate installation
       run: |
@@ -64,6 +70,8 @@ jobs:
 
   benchmark-strategies:
     runs-on: ubuntu-latest
+    env:
+      FSB_SKIP_HEAVY_ML: "1"
     
     steps:
     - uses: actions/checkout@v4
@@ -77,6 +85,8 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install -e .
+        pip install "TA-Lib>=0.6.7" --only-binary=:all: || echo "TA-Lib binary wheel unavailable; continuing without it"
     
     - name: Benchmark strategies
       run: |
@@ -84,6 +94,7 @@ jobs:
           --symbol EURUSD=X \
           --start 2023-01-01 \
           --end 2023-12-31 \
+          --strategies SMA_Crossover RSI_Reversion BreakoutATR \
           --output benchmark_results.json \
           --sort-by sharpe
     
@@ -93,4 +104,3 @@ jobs:
       with:
         name: benchmark-results
         path: benchmark_results.json
-

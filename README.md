@@ -69,7 +69,12 @@ pip install -r requirements.txt
 python app.py
 ```
 
+Optional TA-Lib / deep-learning / remote API stack:
 
+```bash
+pip install -r requirements-optional.txt
+# or: pip install "forexsmartbot[talib,ml,remote]"
+```
 
 ### With GPU Acceleration (Optional)
 

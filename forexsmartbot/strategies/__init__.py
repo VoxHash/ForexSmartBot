@@ -12,15 +12,26 @@ from .news_trading import NewsTrading
 from .fear_index import FearIndexStrategy
 
 # New ML Strategies
-# Use broad exception handling to catch DLL loading errors on Windows
-try:
-    from .lstm_strategy import LSTMStrategy
-    LSTM_AVAILABLE = True
-except (ImportError, OSError, RuntimeError) as e:
-    LSTM_AVAILABLE = False
-    LSTMStrategy = None
-    import warnings
-    warnings.warn(f"LSTM strategy not available: {e}")
+# Use broad exception handling to catch DLL loading errors on Windows.
+# FSB_SKIP_HEAVY_ML skips TensorFlow/torch-backed strategies (CI/CPU runners).
+import os as _os
+
+_SKIP_HEAVY_ML = _os.environ.get("FSB_SKIP_HEAVY_ML", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
+LSTM_AVAILABLE = False
+LSTMStrategy = None
+if not _SKIP_HEAVY_ML:
+    try:
+        from .lstm_strategy import LSTMStrategy
+        LSTM_AVAILABLE = True
+    except (ImportError, OSError, RuntimeError) as e:
+        LSTMStrategy = None
+        import warnings
+        warnings.warn(f"LSTM strategy not available: {e}")
 
 try:
     from .svm_strategy import SVMStrategy
@@ -40,14 +51,16 @@ except (ImportError, OSError, RuntimeError) as e:
     import warnings
     warnings.warn(f"Ensemble ML strategy not available: {e}")
 
-try:
-    from .transformer_strategy import TransformerStrategy
-    TRANSFORMER_AVAILABLE = True
-except (ImportError, OSError, RuntimeError) as e:
-    TRANSFORMER_AVAILABLE = False
-    TransformerStrategy = None
-    import warnings
-    warnings.warn(f"Transformer strategy not available: {e}")
+TRANSFORMER_AVAILABLE = False
+TransformerStrategy = None
+if not _SKIP_HEAVY_ML:
+    try:
+        from .transformer_strategy import TransformerStrategy
+        TRANSFORMER_AVAILABLE = True
+    except (ImportError, OSError, RuntimeError) as e:
+        TransformerStrategy = None
+        import warnings
+        warnings.warn(f"Transformer strategy not available: {e}")
 
 try:
     from .rl_strategy import RLStrategy

@@ -28,57 +28,67 @@ except Exception as e:
     cp = None
     # Silently fail - GPU is optional
 
+# Skip heavy ML imports in CI/CPU runners (TF/torch can SIGSEGV on import).
+_SKIP_HEAVY_ML = os.environ.get("FSB_SKIP_HEAVY_ML", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
 # Try to import PyTorch with very defensive error handling
 # Note: On Windows, PyTorch may fail to load DLLs (e.g., c10.dll) due to missing
 # Visual C++ Redistributables or CUDA issues. We catch all exceptions to allow
 # the app to run without GPU support.
-try:
-    import importlib
-    torch = importlib.import_module('torch')
-    TORCH_AVAILABLE = True
+if not _SKIP_HEAVY_ML:
     try:
-        if torch.cuda.is_available():
-            CUDA_AVAILABLE = True
-            CUDA_DEVICE_COUNT = torch.cuda.device_count()
-        else:
+        import importlib
+        torch = importlib.import_module('torch')
+        TORCH_AVAILABLE = True
+        try:
+            if torch.cuda.is_available():
+                CUDA_AVAILABLE = True
+                CUDA_DEVICE_COUNT = torch.cuda.device_count()
+            else:
+                CUDA_AVAILABLE = False
+                CUDA_DEVICE_COUNT = 0
+        except (OSError, RuntimeError, Exception):
+            # CUDA check failed (DLL loading issues, etc.)
             CUDA_AVAILABLE = False
             CUDA_DEVICE_COUNT = 0
-    except (OSError, RuntimeError, Exception):
-        # CUDA check failed (DLL loading issues, etc.)
+    except (ImportError, OSError, RuntimeError, AttributeError, Exception) as e:
+        # PyTorch import failed (DLL errors, missing dependencies, etc.)
+        # This includes WinError 1114 (DLL initialization failed)
+        TORCH_AVAILABLE = False
         CUDA_AVAILABLE = False
         CUDA_DEVICE_COUNT = 0
-except (ImportError, OSError, RuntimeError, AttributeError, Exception) as e:
-    # PyTorch import failed (DLL errors, missing dependencies, etc.)
-    # This includes WinError 1114 (DLL initialization failed)
-    TORCH_AVAILABLE = False
-    CUDA_AVAILABLE = False
-    CUDA_DEVICE_COUNT = 0
-    torch = None
-    # Silently fail - GPU is optional
+        torch = None
+        # Silently fail - GPU is optional
 
 # Try to import TensorFlow with defensive error handling
-try:
-    import tensorflow as tf
-    TF_AVAILABLE = True
+if not _SKIP_HEAVY_ML:
     try:
-        gpus = tf.config.list_physical_devices('GPU')
-        if gpus:
-            TF_GPU_AVAILABLE = True
-            TF_GPU_COUNT = len(gpus)
-        else:
+        import tensorflow as tf
+        TF_AVAILABLE = True
+        try:
+            gpus = tf.config.list_physical_devices('GPU')
+            if gpus:
+                TF_GPU_AVAILABLE = True
+                TF_GPU_COUNT = len(gpus)
+            else:
+                TF_GPU_AVAILABLE = False
+                TF_GPU_COUNT = 0
+        except (OSError, RuntimeError, Exception):
+            # TensorFlow GPU check failed
             TF_GPU_AVAILABLE = False
             TF_GPU_COUNT = 0
-    except (OSError, RuntimeError, Exception):
-        # TensorFlow GPU check failed
+    except (ImportError, OSError, RuntimeError, AttributeError, Exception):
+        # TensorFlow import failed (DLL errors, missing dependencies, etc.)
+        TF_AVAILABLE = False
         TF_GPU_AVAILABLE = False
         TF_GPU_COUNT = 0
-except (ImportError, OSError, RuntimeError, AttributeError, Exception):
-    # TensorFlow import failed (DLL errors, missing dependencies, etc.)
-    TF_AVAILABLE = False
-    TF_GPU_AVAILABLE = False
-    TF_GPU_COUNT = 0
-    tf = None
-    # Silently fail - GPU is optional
+        tf = None
+        # Silently fail - GPU is optional
+
 
 
 class GPUManager:

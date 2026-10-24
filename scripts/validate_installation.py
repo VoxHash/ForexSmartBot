@@ -1,13 +1,45 @@
 #!/usr/bin/env python3
-"""Validate v3.1.0 installation and features."""
+"""Validate v3.1.0+ installation and features."""
 
-import sys
 import os
+import subprocess
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Heavy ML imports can SIGSEGV on some CPU-only runners; isolate or skip.
+HEAVY_ML_MODULES = frozenset({"tensorflow", "torch"})
+SKIP_HEAVY_ML = os.environ.get("FSB_SKIP_HEAVY_ML", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
 
 
 def check_import(module_name, package_name=None):
-    """Check if a module can be imported."""
+    """Check if a module can be imported without crashing the parent process."""
+    if module_name in HEAVY_ML_MODULES and SKIP_HEAVY_ML:
+        return False, "skipped (FSB_SKIP_HEAVY_ML)"
+
+    if module_name in HEAVY_ML_MODULES:
+        try:
+            result = subprocess.run(
+                [sys.executable, "-c", f"import {module_name}"],
+                capture_output=True,
+                text=True,
+                timeout=90,
+            )
+            if result.returncode != 0:
+                detail = (result.stderr or result.stdout or "").strip()[:200]
+                return False, f"unavailable (exit {result.returncode})" + (
+                    f": {detail}" if detail else ""
+                )
+            return True, None
+        except subprocess.TimeoutExpired:
+            return False, "import timed out"
+        except Exception as e:
+            return False, str(e)
+
     try:
         __import__(module_name)
         return True, None
@@ -31,16 +63,18 @@ def check_strategy(strategy_name):
 def main():
     """Validate installation."""
     print("=" * 70)
-    print("ForexSmartBot v3.1.0 Installation Validation")
+    print("ForexSmartBot Installation Validation")
     print("=" * 70)
-    
+    if SKIP_HEAVY_ML:
+        print("Note: FSB_SKIP_HEAVY_ML set — skipping in-process TensorFlow/PyTorch checks")
+
     all_passed = True
     results = []
-    
+
     # Check core imports
     print("\n1. Core Modules")
     print("-" * 70)
-    
+
     core_modules = [
         ('forexsmartbot.strategies', 'Core strategies'),
         ('forexsmartbot.optimization', 'Optimization tools'),
@@ -48,7 +82,7 @@ def main():
         ('forexsmartbot.builder', 'Strategy builder'),
         ('forexsmartbot.marketplace', 'Marketplace'),
     ]
-    
+
     for module, name in core_modules:
         success, error = check_import(module)
         status = "✓" if success else "✗"
@@ -57,11 +91,11 @@ def main():
             print(f"  Error: {error}")
             all_passed = False
         results.append((name, success))
-    
-    # Check ML dependencies
+
+    # Check ML dependencies (optional — never fail the run)
     print("\n2. ML Dependencies (Optional)")
     print("-" * 70)
-    
+
     ml_dependencies = [
         ('tensorflow', 'TensorFlow (LSTM)'),
         ('torch', 'PyTorch (Deep Learning)'),
@@ -71,20 +105,22 @@ def main():
         ('optuna', 'Optuna (Hyperparameter optimization)'),
         ('deap', 'DEAP (Genetic algorithms)'),
     ]
-    
+
     ml_available = []
     for module, name in ml_dependencies:
         success, error = check_import(module)
         status = "✓" if success else "○"
         print(f"{status} {name}: {module}")
+        if not success and error:
+            print(f"  Note: {error}")
         if success:
             ml_available.append(name)
         results.append((name, success))
-    
+
     # Check strategies
     print("\n3. Strategy Availability")
     print("-" * 70)
-    
+
     strategies_to_check = [
         ('SMA_Crossover', 'Core strategy'),
         ('RSI_Reversion', 'Core strategy'),
@@ -96,22 +132,26 @@ def main():
         ('RL_Strategy', 'RL strategy (requires Gymnasium)'),
         ('Multi_Timeframe', 'Multi-timeframe strategy'),
     ]
-    
+
     for strategy_name, description in strategies_to_check:
         success, message = check_strategy(strategy_name)
         status = "✓" if success else "○"
         print(f"{status} {strategy_name}: {description}")
         if not success and 'requires' not in description.lower():
-            print(f"  Warning: {message}")
-            all_passed = False
+            # Core strategies must be present; optional ML may be absent
+            if description.startswith('Core'):
+                print(f"  Warning: {message}")
+                all_passed = False
+            else:
+                print(f"  Note: {message} (optional)")
         elif not success:
             print(f"  Note: {message} (optional dependency)")
         results.append((strategy_name, success))
-    
+
     # Check optimization tools
     print("\n4. Optimization Tools")
     print("-" * 70)
-    
+
     opt_tools = [
         ('GeneticOptimizer', 'forexsmartbot.optimization'),
         ('HyperparameterOptimizer', 'forexsmartbot.optimization'),
@@ -119,7 +159,7 @@ def main():
         ('MonteCarloSimulator', 'forexsmartbot.optimization'),
         ('ParameterSensitivityAnalyzer', 'forexsmartbot.optimization'),
     ]
-    
+
     for tool_name, module in opt_tools:
         try:
             module_obj = __import__(module, fromlist=[tool_name])
@@ -130,17 +170,17 @@ def main():
             print(f"✗ {tool_name}: {str(e)}")
             all_passed = False
             results.append((tool_name, False))
-    
+
     # Check monitoring tools
     print("\n5. Monitoring Tools")
     print("-" * 70)
-    
+
     monitor_tools = [
         ('StrategyMonitor', 'forexsmartbot.monitoring'),
         ('PerformanceTracker', 'forexsmartbot.monitoring'),
         ('HealthChecker', 'forexsmartbot.monitoring'),
     ]
-    
+
     for tool_name, module in monitor_tools:
         try:
             module_obj = __import__(module, fromlist=[tool_name])
@@ -151,17 +191,17 @@ def main():
             print(f"✗ {tool_name}: {str(e)}")
             all_passed = False
             results.append((tool_name, False))
-    
+
     # Check builder tools
     print("\n6. Strategy Builder")
     print("-" * 70)
-    
+
     builder_tools = [
         ('StrategyBuilder', 'forexsmartbot.builder'),
         ('StrategyTemplate', 'forexsmartbot.builder'),
         ('CodeGenerator', 'forexsmartbot.builder'),
     ]
-    
+
     for tool_name, module in builder_tools:
         try:
             module_obj = __import__(module, fromlist=[tool_name])
@@ -172,16 +212,16 @@ def main():
             print(f"✗ {tool_name}: {str(e)}")
             all_passed = False
             results.append((tool_name, False))
-    
+
     # Check marketplace
     print("\n7. Marketplace")
     print("-" * 70)
-    
+
     marketplace_tools = [
         ('StrategyMarketplace', 'forexsmartbot.marketplace'),
         ('StrategyRating', 'forexsmartbot.marketplace'),
     ]
-    
+
     for tool_name, module in marketplace_tools:
         try:
             module_obj = __import__(module, fromlist=[tool_name])
@@ -192,26 +232,26 @@ def main():
             print(f"✗ {tool_name}: {str(e)}")
             all_passed = False
             results.append((tool_name, False))
-    
+
     # Summary
     print("\n" + "=" * 70)
     print("Validation Summary")
     print("=" * 70)
-    
+
     total = len(results)
     passed = sum(1 for _, success in results if success)
     failed = total - passed
-    
+
     print(f"Total Checks: {total}")
     print(f"Passed: {passed}")
-    print(f"Failed: {failed}")
-    
+    print(f"Failed/optional missing: {failed}")
+
     if ml_available:
         print(f"\nML Features Available: {len(ml_available)}/{len(ml_dependencies)}")
         print("Available ML dependencies:")
         for dep in ml_available:
             print(f"  - {dep}")
-    
+
     if all_passed:
         print("\n✓ All core features validated successfully!")
         print("✓ Installation is correct")
@@ -219,13 +259,14 @@ def main():
             print(f"✓ {len(ml_available)} ML dependencies available")
         return 0
     else:
-        print("\n⚠ Some checks failed")
+        print("\n⚠ Some core checks failed")
         print("⚠ Core features may not work correctly")
         print("\nTo install missing dependencies:")
         print("  pip install -r requirements.txt")
+        print("Optional ML/TA-Lib stack:")
+        print("  pip install -r requirements-optional.txt")
         return 1
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
