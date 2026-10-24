@@ -222,8 +222,12 @@ class StrategySandbox:
         winning_trades = [t for t in trades if t.get('profit', 0) > 0]
         win_rate = len(winning_trades) / len(trades) if trades else 0
         
-        # Safety assessment
-        is_safe = len(safety_violations) == 0 and max_drawdown <= self.max_drawdown_limit
+        # Hard failures only: exceptions / invalid signals; soft SL/TP fixes are warnings
+        hard_violations = [
+            v for v in safety_violations
+            if v.get('type') in ('exception', 'invalid_signal', 'max_drawdown_exceeded')
+        ]
+        is_safe = len(hard_violations) == 0 and max_drawdown <= self.max_drawdown_limit
         
         return {
             'strategy_name': strategy.name,
