@@ -89,7 +89,10 @@ class StrategySandbox:
                 if signal != 0:
                     # Safety check: Position size
                     size = self.risk_engine.calculate_position_size(
-                        self.portfolio.get_total_balance(), volatility or 0.01, signal
+                        symbol,
+                        strategy.name,
+                        self.portfolio.get_total_balance(),
+                        volatility or 0.01,
                     )
                     
                     # Check max loss per trade

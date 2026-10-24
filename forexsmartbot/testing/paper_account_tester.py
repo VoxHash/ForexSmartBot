@@ -170,7 +170,10 @@ class PaperAccountTester:
         # Open new position
         if symbol not in positions:
             size = self.risk_engine.calculate_position_size(
-                self.portfolio.get_total_balance(), volatility or 0.01, signal
+                symbol,
+                strategy.name,
+                self.portfolio.get_total_balance(),
+                volatility or 0.01,
             )
             
             if size > 0:
