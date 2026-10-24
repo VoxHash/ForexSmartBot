@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.2.4] - 2026-10-24
+
+### Added
+- **Backtest UI**: KPI cards (return, Sharpe, max DD, win rate, trades, profit factor), equity-curve chart tab, trades table tab
+- **Backtest UI**: Date-range presets (1M/3M/1Y/5Y/YTD), 15m interval, cancel control, JSON/CSV export via file dialog
+- **Tests**: `tests/test_backtest_dialog_ui.py` for strategy label parsing
+
+### Fixed
+- **Strategy Tests workflow**: Invoke pipeline as `python -m forexsmartbot.testing.ci_cd_pipeline` (relative imports failed when run as a script)
+- **Backtest dialog**: Strategy combo stores registry name in `userData`; worker emits error payload so the UI re-enables after failures; equity curve included in results
+
 ## [3.2.3] - 2026-10-24
 
 ### Fixed

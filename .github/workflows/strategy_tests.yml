@@ -43,7 +43,7 @@ jobs:
     
     - name: Run strategy tests
       run: |
-        python forexsmartbot/testing/ci_cd_pipeline.py \
+        python -m forexsmartbot.testing.ci_cd_pipeline \
           --config .github/test_config.json \
           --output test_report.txt \
           --json test_results.json
@@ -59,7 +59,7 @@ jobs:
     
     - name: Check test results
       run: |
-        python forexsmartbot/testing/ci_cd_pipeline.py \
+        python -m forexsmartbot.testing.ci_cd_pipeline \
           --strategies SMA_Crossover RSI_Reversion \
           --output /dev/null
         exit_code=$?

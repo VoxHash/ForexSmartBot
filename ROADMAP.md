@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.2.x** line (latest **3.2.3**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.2.x** line (latest **3.2.4**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -14,10 +14,11 @@ High-level milestones aligned with the current **3.2.x** line (latest **3.2.3**)
 - [x] Linux-friendly optional dependencies (`win10toast` / platform markers in `requirements.txt`)
 - [x] Expand automated tests beyond placeholder `tests/` package (MTF, strategy registry, native_indicators NumPy fallback, risk, config)
 - [x] PyPI publish parity with source install (document Python 3.10–3.12)
+- [x] CI / Strategy Tests infra: optional TA-Lib + heavy ML (`FSB_SKIP_HEAVY_ML`), mplfinance pin, module-style strategy pipeline invoke
 
 ## Q1 2027
 - [x] Advanced analytics dashboard (UI polish and live metrics) — live KPI cards + portfolio/risk tables (`build_live_metrics` / `PortfolioAnalyticsWidget`); risk dialog loads portfolio trades; main-window refresh hook
-- [ ] Strategy backtesting UI improvements
+- [x] Strategy backtesting UI improvements — KPI cards, equity curve tab, trades table, date presets, cancel, JSON/CSV export; combo stores strategy id via `userData`
 - [ ] Remote monitoring and cloud sync hardening
 
 ## Q2 2027

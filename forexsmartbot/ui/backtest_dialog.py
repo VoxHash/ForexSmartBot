@@ -5,14 +5,20 @@ Backtest Dialog for ForexSmartBot
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
                              QLabel, QLineEdit, QComboBox, QDoubleSpinBox,
                              QPushButton, QTextEdit, QProgressBar, QGroupBox,
-                             QDateEdit, QSpinBox, QCheckBox, QMessageBox)
+                             QDateEdit, QSpinBox, QCheckBox, QMessageBox,
+                             QFileDialog, QTabWidget, QTableWidget, QTableWidgetItem,
+                             QFrame, QGridLayout, QSizePolicy, QWidget)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QDate
 from PyQt6.QtGui import QFont
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+import csv
 import json
+
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 from ..strategies import get_strategy
 from ..adapters.data import YFinanceProvider, CSVProvider, MultiProvider
@@ -21,6 +27,25 @@ from ..core.risk_engine import RiskEngine, RiskConfig
 from ..services.gpu_backtest import GPUBacktestService
 from ..services.backtest import BacktestService
 from ..utils.gpu_utils import get_gpu_manager, GPUManager
+from ..utils.backtest_utils import parse_strategy_label
+
+
+_KPI_CARD_STYLE = """
+QFrame#backtestKpiCard {
+    background-color: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 6px;
+    padding: 4px;
+}
+QLabel#backtestKpiValue {
+    font-size: 16px;
+    font-weight: bold;
+}
+QLabel#backtestKpiLabel {
+    font-size: 11px;
+    color: palette(mid);
+}
+"""
 
 
 class BacktestWorker(QThread):
@@ -70,13 +95,7 @@ class BacktestWorker(QThread):
             if use_gpu:
                 self.log_updated.emit("GPU acceleration available - attempting GPU backtest")
                 try:
-                    # Extract strategy name
-                    strategy_name = self.config['strategy']
-                    for emoji in ['🟢 ', '🟡 ', '🔴 ', '⚪ ']:
-                        if emoji in strategy_name:
-                            strategy_name = strategy_name.replace(emoji, '')
-                    if ' (' in strategy_name:
-                        strategy_name = strategy_name.split(' (')[0]
+                    strategy_name = parse_strategy_label(self.config['strategy'])
                     
                     # Get strategy
                     strategy = get_strategy(strategy_name)
@@ -152,15 +171,7 @@ class BacktestWorker(QThread):
             self.log_updated.emit(f"Loaded {len(df)} data points")
             self.progress_updated.emit(30)
             
-            # Extract strategy name from risk level indicator
-            strategy_name = self.config['strategy']
-            # Remove emoji prefixes
-            for emoji in ['🟢 ', '🟡 ', '🔴 ', '⚪ ']:
-                if emoji in strategy_name:
-                    strategy_name = strategy_name.replace(emoji, '')
-            # Remove risk level suffix in parentheses
-            if ' (' in strategy_name:
-                strategy_name = strategy_name.split(' (')[0]
+            strategy_name = parse_strategy_label(self.config['strategy'])
             
             # Get strategy
             strategy = get_strategy(strategy_name)
@@ -481,14 +492,21 @@ class BacktestWorker(QThread):
             self.log_updated.emit("Calculating results...")
             metrics = portfolio.calculate_metrics()
             
+            equity_curve = list(portfolio.equity_history)
+            timestamps = [ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+                          for ts in portfolio.timestamps]
+
             results = {
                 'trades': trades,
                 'metrics': metrics,
                 'data_points': len(df),
-                'strategy': self.config['strategy'],
+                'strategy': strategy_name,
                 'symbol': self.config['symbol'],
                 'start_date': self.config['start_date'],
-                'end_date': self.config['end_date']
+                'end_date': self.config['end_date'],
+                'equity_curve': equity_curve,
+                'equity_timestamps': timestamps,
+                'initial_balance': self.config['initial_balance'],
             }
             
             self.progress_updated.emit(100)
@@ -497,19 +515,22 @@ class BacktestWorker(QThread):
             
         except Exception as e:
             self.log_updated.emit(f"Backtest error: {str(e)}")
+            self.backtest_completed.emit({'error': str(e)})
             
     def create_sample_data(self):
         """Create sample data for backtesting."""
         # Create data based on the requested interval
         interval = self.config.get('interval', '1h')
-        if interval == '1h':
-            freq = '1H'
+        if interval == '15m':
+            freq = '15min'
+        elif interval == '1h':
+            freq = '1h'
         elif interval == '4h':
-            freq = '4H'
+            freq = '4h'
         elif interval == '1d':
             freq = '1D'
         else:
-            freq = '1H'
+            freq = '1h'
             
         dates = pd.date_range(start=self.config['start_date'], end=self.config['end_date'], freq=freq)
         np.random.seed(42)
@@ -556,10 +577,11 @@ class BacktestDialog(QDialog):
         self.language_manager = language_manager
         self.setWindowTitle(self.tr("backtest_configuration", "Backtest Configuration"))
         self.setModal(True)
-        self.resize(600, 700)
+        self.resize(780, 860)
         
         self.worker = None
         self.results = None
+        self._kpi_value_labels: Dict[str, QLabel] = {}
         
         self.setup_ui()
     
@@ -568,6 +590,26 @@ class BacktestDialog(QDialog):
         if self.language_manager:
             return self.language_manager.tr(key, default)
         return default or key
+
+    def _selected_strategy(self) -> str:
+        data = self.strategy_combo.currentData()
+        if isinstance(data, str) and data:
+            return data
+        return parse_strategy_label(self.strategy_combo.currentText())
+
+    def _apply_date_preset(self, preset: str) -> None:
+        end = QDate.currentDate()
+        self.end_date_edit.setDate(end)
+        if preset == "1M":
+            self.start_date_edit.setDate(end.addMonths(-1))
+        elif preset == "3M":
+            self.start_date_edit.setDate(end.addMonths(-3))
+        elif preset == "1Y":
+            self.start_date_edit.setDate(end.addYears(-1))
+        elif preset == "YTD":
+            self.start_date_edit.setDate(QDate(end.year(), 1, 1))
+        else:  # 5Y default
+            self.start_date_edit.setDate(end.addYears(-5))
         
     def setup_ui(self):
         """Setup the UI components."""
@@ -580,57 +622,58 @@ class BacktestDialog(QDialog):
         # Strategy selection - Load all strategies dynamically from module
         self.strategy_combo = QComboBox()
         
-        # Get all available strategies from the strategies module
         from forexsmartbot.strategies import STRATEGIES, RISK_LEVELS
         
-        # Organize strategies by risk level
-        low_risk_strategies = RISK_LEVELS.get('Low_Risk', [])
-        medium_risk_strategies = RISK_LEVELS.get('Medium_Risk', [])
-        high_risk_strategies = RISK_LEVELS.get('High_Risk', [])
-        
-        # Get all strategies and categorize them
+        low_risk_strategies = list(RISK_LEVELS.get('Low_Risk', []))
+        medium_risk_strategies = list(RISK_LEVELS.get('Medium_Risk', []))
+        high_risk_strategies = list(RISK_LEVELS.get('High_Risk', []))
         all_strategies = list(STRATEGIES.keys())
         
-        # Add ML strategies to appropriate risk levels
         ml_strategies = ['LSTM_Strategy', 'SVM_Strategy', 'Ensemble_ML_Strategy', 
                         'Transformer_Strategy', 'RL_Strategy', 'Multi_Timeframe']
         for ml_strategy in ml_strategies:
             if ml_strategy in all_strategies and ml_strategy not in high_risk_strategies:
                 high_risk_strategies.append(ml_strategy)
         
-        # Add strategies with risk level indicators
+        def _add_strategy(name: str, prefix: str, risk_key: str, risk_default: str) -> None:
+            label = f"{prefix}{name} ({self.tr(risk_key, risk_default)})"
+            self.strategy_combo.addItem(label, name)
+
         for strategy in low_risk_strategies:
             if strategy in all_strategies:
-                self.strategy_combo.addItem(f"🟢 {strategy} ({self.tr('low_risk', 'Low Risk')})")
+                _add_strategy(strategy, "🟢 ", "low_risk", "Low Risk")
         for strategy in medium_risk_strategies:
             if strategy in all_strategies:
-                self.strategy_combo.addItem(f"🟡 {strategy} ({self.tr('medium_risk', 'Medium Risk')})")
+                _add_strategy(strategy, "🟡 ", "medium_risk", "Medium Risk")
         for strategy in high_risk_strategies:
             if strategy in all_strategies:
-                self.strategy_combo.addItem(f"🔴 {strategy} ({self.tr('high_risk', 'High Risk')})")
-        
-        # Add any remaining strategies that weren't categorized
+                _add_strategy(strategy, "🔴 ", "high_risk", "High Risk")
+        categorized = set(low_risk_strategies + medium_risk_strategies + high_risk_strategies)
         for strategy in all_strategies:
-            if strategy not in low_risk_strategies + medium_risk_strategies + high_risk_strategies:
-                self.strategy_combo.addItem(f"⚪ {strategy}")
+            if strategy not in categorized:
+                self.strategy_combo.addItem(f"⚪ {strategy}", strategy)
             
         config_layout.addRow(f"{self.tr('strategy', 'Strategy')}:", self.strategy_combo)
         
         # Symbol selection
         self.symbol_combo = QComboBox()
-        # Major pairs (highest liquidity, best for trading)
         major_pairs = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'NZDUSD']
-        # Minor pairs (good liquidity, active trading)
         minor_pairs = ['EURGBP', 'EURJPY', 'GBPJPY', 'AUDCAD', 'AUDCHF', 'AUDJPY', 'AUDNZD', 'CADCHF', 'CADJPY', 'CHFJPY', 'EURAUD', 'EURCAD', 'EURCHF', 'EURNZD', 'GBPAUD', 'GBPCAD', 'GBPCHF', 'GBPNZD', 'NZDCAD', 'NZDCHF', 'NZDJPY']
-        # Exotic pairs (higher volatility, more opportunities)
         exotic_pairs = ['USDTRY', 'USDZAR', 'USDMXN', 'USDPLN', 'USDCZK', 'USDHUF', 'USDSEK', 'USDNOK', 'USDDKK', 'USDRUB', 'USDCNH', 'USDSGD', 'USDHKD', 'USDTWD', 'USDKRW', 'USDINR', 'USDBRL', 'USDARS', 'USDCLP', 'USDCOP']
-        
-        # Combine all pairs in order of trading quality
-        all_pairs = major_pairs + minor_pairs + exotic_pairs
-        self.symbol_combo.addItems(all_pairs)
+        self.symbol_combo.addItems(major_pairs + minor_pairs + exotic_pairs)
         config_layout.addRow(f"{self.tr('symbols', 'Symbol')}:", self.symbol_combo)
+
+        # Date presets
+        preset_row = QHBoxLayout()
+        self.preset_combo = QComboBox()
+        self.preset_combo.addItems(["1M", "3M", "1Y", "5Y", "YTD"])
+        self.preset_combo.setCurrentText("5Y")
+        self.preset_combo.currentTextChanged.connect(self._apply_date_preset)
+        preset_row.addWidget(QLabel(self.tr("date_preset", "Preset")))
+        preset_row.addWidget(self.preset_combo)
+        preset_row.addStretch()
+        config_layout.addRow(self.tr("range_presets", "Range"), preset_row)
         
-        # Date range - Default to 5 years of data
         self.start_date_edit = QDateEdit()
         self.start_date_edit.setDate(QDate.currentDate().addYears(-5))
         self.start_date_edit.setCalendarPopup(True)
@@ -641,13 +684,11 @@ class BacktestDialog(QDialog):
         self.end_date_edit.setCalendarPopup(True)
         config_layout.addRow(f"{self.tr('end_date', 'End Date')}:", self.end_date_edit)
         
-        # Interval
         self.interval_combo = QComboBox()
-        self.interval_combo.addItems(['1h', '4h', '1d'])
+        self.interval_combo.addItems(['15m', '1h', '4h', '1d'])
         self.interval_combo.setCurrentText('1h')
         config_layout.addRow(f"{self.tr('interval', 'Interval')}:", self.interval_combo)
         
-        # Risk parameters
         self.initial_balance_spin = QDoubleSpinBox()
         self.initial_balance_spin.setRange(1000, 1000000)
         self.initial_balance_spin.setValue(10000)
@@ -666,7 +707,6 @@ class BacktestDialog(QDialog):
         self.max_risk_pct_spin.setSuffix(" %")
         config_layout.addRow(f"{self.tr('max_risk', 'Max Risk')}:", self.max_risk_pct_spin)
         
-        # Leverage selection
         self.leverage_combo = QComboBox()
         leverage_options = [
             f"1:1 ({self.tr('no_leverage', 'No Leverage')})",
@@ -685,7 +725,6 @@ class BacktestDialog(QDialog):
         self.leverage_combo.setCurrentText(f"1:10 ({self.tr('moderate', 'Moderate')})")
         config_layout.addRow(f"{self.tr('leverage', 'Leverage')}:", self.leverage_combo)
         
-        # Broker spread configuration
         self.broker_spread_spin = QDoubleSpinBox()
         self.broker_spread_spin.setRange(0.0, 50.0)
         self.broker_spread_spin.setDecimals(1)
@@ -696,38 +735,63 @@ class BacktestDialog(QDialog):
         
         layout.addWidget(config_group)
         
-        # Progress section
         progress_group = QGroupBox(self.tr("backtest_progress", "Backtest Progress"))
         progress_layout = QVBoxLayout(progress_group)
-        
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar)
-        
         self.log_text = QTextEdit()
-        self.log_text.setMaximumHeight(150)
+        self.log_text.setMaximumHeight(120)
         self.log_text.setReadOnly(True)
         progress_layout.addWidget(self.log_text)
-        
         layout.addWidget(progress_group)
         
-        # Results section
         results_group = QGroupBox(self.tr("backtest_results", "Backtest Results"))
         results_layout = QVBoxLayout(results_group)
-        
+        results_layout.addWidget(self._build_kpi_row())
+
+        self.results_tabs = QTabWidget()
+        self.results_tabs.setVisible(False)
+
+        summary_page = QWidget()
+        summary_layout = QVBoxLayout(summary_page)
         self.results_text = QTextEdit()
         self.results_text.setReadOnly(True)
-        self.results_text.setVisible(False)
-        results_layout.addWidget(self.results_text)
-        
+        summary_layout.addWidget(self.results_text)
+        self.results_tabs.addTab(summary_page, self.tr("summary_tab", "Summary"))
+
+        chart_page = QWidget()
+        chart_layout = QVBoxLayout(chart_page)
+        self.equity_figure = Figure(figsize=(5, 2.8), tight_layout=True)
+        self.equity_canvas = FigureCanvas(self.equity_figure)
+        chart_layout.addWidget(self.equity_canvas)
+        self.results_tabs.addTab(chart_page, self.tr("equity_tab", "Equity"))
+
+        trades_page = QWidget()
+        trades_layout = QVBoxLayout(trades_page)
+        self.trades_table = QTableWidget(0, 6)
+        self.trades_table.setHorizontalHeaderLabels(
+            ["Exit", "Symbol", "Side", "Size", "PnL", "Strategy"]
+        )
+        self.trades_table.horizontalHeader().setStretchLastSection(True)
+        self.trades_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.trades_table.setAlternatingRowColors(True)
+        trades_layout.addWidget(self.trades_table)
+        self.results_tabs.addTab(trades_page, self.tr("trades_tab", "Trades"))
+
+        results_layout.addWidget(self.results_tabs)
         layout.addWidget(results_group)
+        self.setStyleSheet(_KPI_CARD_STYLE)
         
-        # Buttons
         button_layout = QHBoxLayout()
-        
         self.run_button = QPushButton(self.tr("run_backtest", "Run Backtest"))
         self.run_button.clicked.connect(self.run_backtest)
         button_layout.addWidget(self.run_button)
+
+        self.cancel_button = QPushButton(self.tr("cancel_backtest", "Cancel"))
+        self.cancel_button.clicked.connect(self.cancel_backtest)
+        self.cancel_button.setEnabled(False)
+        button_layout.addWidget(self.cancel_button)
         
         self.export_button = QPushButton(self.tr("export_results", "Export Results"))
         self.export_button.clicked.connect(self.export_results)
@@ -739,13 +803,43 @@ class BacktestDialog(QDialog):
         button_layout.addWidget(self.close_button)
         
         layout.addLayout(button_layout)
+
+    def _build_kpi_row(self) -> QWidget:
+        wrap = QWidget()
+        grid = QGridLayout(wrap)
+        grid.setContentsMargins(0, 0, 0, 0)
+        specs = [
+            ("return", self.tr("kpi_return", "Return")),
+            ("sharpe", self.tr("kpi_sharpe", "Sharpe")),
+            ("drawdown", self.tr("kpi_drawdown", "Max DD")),
+            ("win_rate", self.tr("kpi_win_rate", "Win Rate")),
+            ("trades", self.tr("kpi_trades", "Trades")),
+            ("profit_factor", self.tr("kpi_pf", "Profit Factor")),
+        ]
+        self._kpi_value_labels = {}
+        for col, (key, title) in enumerate(specs):
+            frame = QFrame()
+            frame.setObjectName("backtestKpiCard")
+            frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            inner = QVBoxLayout(frame)
+            inner.setContentsMargins(8, 6, 8, 6)
+            value = QLabel("—")
+            value.setObjectName("backtestKpiValue")
+            label = QLabel(title)
+            label.setObjectName("backtestKpiLabel")
+            inner.addWidget(value)
+            inner.addWidget(label)
+            grid.addWidget(frame, 0, col)
+            self._kpi_value_labels[key] = value
+        wrap.setVisible(False)
+        self.kpi_row = wrap
+        return wrap
         
     def run_backtest(self):
         """Run the backtest."""
         try:
-            # Get configuration
             config = {
-                'strategy': self.strategy_combo.currentText(),
+                'strategy': self._selected_strategy(),
                 'symbol': self.symbol_combo.currentText(),
                 'start_date': self.start_date_edit.date().toString('yyyy-MM-dd'),
                 'end_date': self.end_date_edit.date().toString('yyyy-MM-dd'),
@@ -759,27 +853,41 @@ class BacktestDialog(QDialog):
                 'max_drawdown_pct': 0.25
             }
             
-            # Clear previous results
             self.results = None
             self.results_text.clear()
-            self.results_text.setVisible(False)
-            self.log_text.clear()  # Clear progress log
+            self.results_tabs.setVisible(False)
+            self.kpi_row.setVisible(False)
+            self.log_text.clear()
             self.export_button.setEnabled(False)
+            self.trades_table.setRowCount(0)
+            self.equity_figure.clear()
+            self.equity_canvas.draw_idle()
             
-            # Start worker
             self.worker = BacktestWorker(config)
             self.worker.progress_updated.connect(self.update_progress)
             self.worker.log_updated.connect(self.update_log)
             self.worker.backtest_completed.connect(self.on_backtest_completed)
             self.worker.start()
             
-            # Update UI
             self.run_button.setEnabled(False)
+            self.cancel_button.setEnabled(True)
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to start backtest: {str(e)}")
+
+    def cancel_backtest(self):
+        """Request cancellation of the running backtest worker."""
+        if self.worker and self.worker.isRunning():
+            self.log_text.append(f"[{datetime.now().strftime('%H:%M:%S')}] Cancel requested…")
+            self.worker.requestInterruption()
+            self.worker.terminate()
+            self.worker.wait(2000)
+            self.run_button.setEnabled(True)
+            self.cancel_button.setEnabled(False)
+            self.progress_bar.setVisible(False)
+            self.update_log("Backtest cancelled")
             
     def update_progress(self, value):
         """Update progress bar."""
@@ -794,18 +902,40 @@ class BacktestDialog(QDialog):
         """Handle backtest completion."""
         self.results = results
         self.run_button.setEnabled(True)
+        self.cancel_button.setEnabled(False)
         self.progress_bar.setVisible(False)
-        self.export_button.setEnabled(True)
-        
-        # Display results
+        if results and not results.get("error"):
+            self.export_button.setEnabled(True)
+        else:
+            self.export_button.setEnabled(False)
         self.display_results(results)
         
     def display_results(self, results):
-        """Display backtest results."""
+        """Display backtest results with KPI cards, equity curve, and trade table."""
         try:
+            if not results or results.get("error"):
+                err = (results or {}).get("error", "Unknown error")
+                self.results_text.setPlainText(f"Backtest failed: {err}")
+                self.results_tabs.setVisible(True)
+                self.kpi_row.setVisible(False)
+                return
+
             metrics = results['metrics']
-            trades = results['trades']
-            
+            trades = results.get('trades') or []
+            initial = float(results.get('initial_balance') or metrics.total_balance)
+            total_return_pct = ((metrics.total_equity - initial) / initial * 100.0) if initial else 0.0
+            sharpe = metrics.sharpe_ratio if metrics.sharpe_ratio is not None else float("nan")
+
+            self._kpi_value_labels["return"].setText(f"{total_return_pct:+.2f}%")
+            self._kpi_value_labels["sharpe"].setText(
+                f"{sharpe:.2f}" if sharpe == sharpe else "—"
+            )
+            self._kpi_value_labels["drawdown"].setText(f"{metrics.max_drawdown:.2f}%")
+            self._kpi_value_labels["win_rate"].setText(f"{metrics.win_rate:.1%}")
+            self._kpi_value_labels["trades"].setText(str(metrics.total_trades))
+            self._kpi_value_labels["profit_factor"].setText(f"{metrics.profit_factor:.2f}")
+            self.kpi_row.setVisible(True)
+
             results_text = f"""
 BACKTEST RESULTS
 ================
@@ -819,11 +949,13 @@ PERFORMANCE METRICS
 ===================
 Total Balance: ${metrics.total_balance:.2f}
 Total Equity: ${metrics.total_equity:.2f}
+Return: {total_return_pct:+.2f}%
 Unrealized PnL: ${metrics.unrealized_pnl:.2f}
 Realized PnL: ${metrics.realized_pnl:.2f}
 Daily PnL: ${metrics.daily_pnl:.2f}
 Max Drawdown: {metrics.max_drawdown:.2f}%
 Current Drawdown: {metrics.current_drawdown:.2f}%
+Sharpe Ratio: {sharpe if sharpe == sharpe else 'n/a'}
 
 TRADE STATISTICS
 ================
@@ -836,71 +968,139 @@ Average Win: ${metrics.avg_win:.2f}
 Average Loss: ${metrics.avg_loss:.2f}
 Largest Win: ${metrics.largest_win:.2f}
 Largest Loss: ${metrics.largest_loss:.2f}
-
-RECENT TRADES
-=============
 """
-            
-            # Add recent trades
-            if trades:
-                for trade in trades[-10:]:  # Show last 10 trades
-                    results_text += f"{trade['exit_time'].strftime('%Y-%m-%d %H:%M')} | "
-                    results_text += f"{trade['symbol']} | "
-                    results_text += f"{'BUY' if trade['side'] > 0 else 'SELL'} | "
-                    results_text += f"${trade['pnl']:.2f}\n"
-            else:
-                results_text += "No trades executed during this backtest period.\n"
-            
             self.results_text.setPlainText(results_text)
-            self.results_text.setVisible(True)
+            self._update_equity_chart(results)
+            self._update_trades_table(trades)
+            self.results_tabs.setVisible(True)
+            self.results_tabs.setCurrentIndex(0)
             
         except Exception as e:
             self.results_text.setPlainText(f"Error displaying results: {str(e)}")
-            self.results_text.setVisible(True)
+            self.results_tabs.setVisible(True)
+
+    def _update_equity_chart(self, results: Dict[str, Any]) -> None:
+        self.equity_figure.clear()
+        ax = self.equity_figure.add_subplot(111)
+        curve = results.get("equity_curve") or []
+        if len(curve) < 2:
+            ax.text(0.5, 0.5, "No equity curve data", ha="center", va="center")
+            ax.set_axis_off()
+        else:
+            ax.plot(curve, color="#2a9d8f", linewidth=1.4)
+            ax.fill_between(range(len(curve)), curve, alpha=0.15, color="#2a9d8f")
+            ax.set_title("Equity Curve")
+            ax.set_xlabel("Bar")
+            ax.set_ylabel("Equity")
+            ax.grid(True, alpha=0.25)
+        self.equity_canvas.draw_idle()
+
+    def _update_trades_table(self, trades: List[Dict[str, Any]]) -> None:
+        self.trades_table.setRowCount(0)
+        for trade in trades:
+            row = self.trades_table.rowCount()
+            self.trades_table.insertRow(row)
+            exit_time = trade.get("exit_time")
+            exit_str = exit_time.strftime("%Y-%m-%d %H:%M") if hasattr(exit_time, "strftime") else str(exit_time)
+            side = "BUY" if trade.get("side", 0) > 0 else "SELL"
+            values = [
+                exit_str,
+                str(trade.get("symbol", "")),
+                side,
+                f"{float(trade.get('size', 0)):.4f}",
+                f"{float(trade.get('pnl', 0)):.2f}",
+                str(trade.get("strategy", "")),
+            ]
+            for col, value in enumerate(values):
+                self.trades_table.setItem(row, col, QTableWidgetItem(value))
             
     def export_results(self):
-        """Export backtest results."""
-        if not self.results:
+        """Export backtest results as JSON or CSV via file dialog."""
+        if not self.results or self.results.get("error"):
             return
             
         try:
-            # Save results to JSON file
-            filename = f"backtest_{self.results['strategy']}_{self.results['symbol']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            
-            export_data = {
-                'config': {
-                    'strategy': self.results['strategy'],
-                    'symbol': self.results['symbol'],
-                    'start_date': self.results['start_date'],
-                    'end_date': self.results['end_date']
-                },
-                'metrics': {
-                    'total_balance': self.results['metrics'].total_balance,
-                    'total_equity': self.results['metrics'].total_equity,
-                    'realized_pnl': self.results['metrics'].realized_pnl,
-                    'max_drawdown': self.results['metrics'].max_drawdown,
-                    'win_rate': self.results['metrics'].win_rate,
-                    'profit_factor': self.results['metrics'].profit_factor,
-                    'total_trades': self.results['metrics'].total_trades
-                },
-                'trades': [
-                    {
-                        'symbol': trade['symbol'],
-                        'side': trade['side'],
-                        'size': trade['size'],
-                        'entry_price': trade['entry_price'],
-                        'exit_price': trade['exit_price'],
-                        'pnl': trade['pnl'],
-                        'entry_time': trade['entry_time'].isoformat(),
-                        'exit_time': trade['exit_time'].isoformat(),
-                        'strategy': trade['strategy']
-                    }
-                    for trade in self.results['trades']
-                ]
-            }
-            
-            with open(filename, 'w') as f:
-                json.dump(export_data, f, indent=2)
+            default_name = (
+                f"backtest_{self.results['strategy']}_{self.results['symbol']}_"
+                f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            filename, selected_filter = QFileDialog.getSaveFileName(
+                self,
+                self.tr("export_results", "Export Results"),
+                default_name,
+                "JSON (*.json);;CSV trades (*.csv)",
+            )
+            if not filename:
+                return
+
+            if selected_filter.startswith("CSV") or filename.lower().endswith(".csv"):
+                if not filename.lower().endswith(".csv"):
+                    filename += ".csv"
+                with open(filename, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(
+                        f,
+                        fieldnames=[
+                            "symbol", "side", "size", "entry_price", "exit_price",
+                            "pnl", "entry_time", "exit_time", "strategy",
+                        ],
+                    )
+                    writer.writeheader()
+                    for trade in self.results.get("trades") or []:
+                        writer.writerow({
+                            "symbol": trade.get("symbol"),
+                            "side": trade.get("side"),
+                            "size": trade.get("size"),
+                            "entry_price": trade.get("entry_price"),
+                            "exit_price": trade.get("exit_price"),
+                            "pnl": trade.get("pnl"),
+                            "entry_time": trade["entry_time"].isoformat()
+                            if hasattr(trade.get("entry_time"), "isoformat") else trade.get("entry_time"),
+                            "exit_time": trade["exit_time"].isoformat()
+                            if hasattr(trade.get("exit_time"), "isoformat") else trade.get("exit_time"),
+                            "strategy": trade.get("strategy"),
+                        })
+            else:
+                if not filename.lower().endswith(".json"):
+                    filename += ".json"
+                metrics = self.results["metrics"]
+                export_data = {
+                    "config": {
+                        "strategy": self.results["strategy"],
+                        "symbol": self.results["symbol"],
+                        "start_date": self.results["start_date"],
+                        "end_date": self.results["end_date"],
+                        "initial_balance": self.results.get("initial_balance"),
+                    },
+                    "metrics": {
+                        "total_balance": metrics.total_balance,
+                        "total_equity": metrics.total_equity,
+                        "realized_pnl": metrics.realized_pnl,
+                        "max_drawdown": metrics.max_drawdown,
+                        "win_rate": metrics.win_rate,
+                        "profit_factor": metrics.profit_factor,
+                        "total_trades": metrics.total_trades,
+                        "sharpe_ratio": metrics.sharpe_ratio,
+                    },
+                    "equity_curve": self.results.get("equity_curve") or [],
+                    "trades": [
+                        {
+                            "symbol": trade["symbol"],
+                            "side": trade["side"],
+                            "size": trade["size"],
+                            "entry_price": trade["entry_price"],
+                            "exit_price": trade["exit_price"],
+                            "pnl": trade["pnl"],
+                            "entry_time": trade["entry_time"].isoformat()
+                            if hasattr(trade["entry_time"], "isoformat") else str(trade["entry_time"]),
+                            "exit_time": trade["exit_time"].isoformat()
+                            if hasattr(trade["exit_time"], "isoformat") else str(trade["exit_time"]),
+                            "strategy": trade["strategy"],
+                        }
+                        for trade in self.results.get("trades") or []
+                    ],
+                }
+                with open(filename, "w", encoding="utf-8") as f:
+                    json.dump(export_data, f, indent=2)
                 
             QMessageBox.information(self, "Export Complete", f"Results exported to {filename}")
             
