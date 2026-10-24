@@ -97,6 +97,93 @@ class TestCompanionAPI:
             == 404
         )
 
+    def test_pairing_session_and_redeem(self):
+        api = CompanionAPI(
+            api_key="companion-test-key16",
+            require_api_key=True,
+            public_base_url="http://127.0.0.1:8080",
+            pin_sha256="sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        )
+        client = api.app.test_client()
+        created = client.post(
+            "/api/v1/companion/pairing/session",
+            headers={"X-API-Key": "companion-test-key16"},
+            json={},
+        )
+        assert created.status_code == 201
+        body = created.get_json()
+        assert body["qr_payload"]["scheme"] == "fsb-companion"
+        assert body["qr_payload"]["pairing_code"]
+        code = body["pairing_code"]
+
+        bad = client.post(
+            "/api/v1/companion/pairing/redeem",
+            json={"pairing_code": "not-a-real-code"},
+        )
+        assert bad.status_code == 400
+
+        ok = client.post(
+            "/api/v1/companion/pairing/redeem",
+            json={"pairing_code": code},
+        )
+        assert ok.status_code == 200
+        redeemed = ok.get_json()
+        assert redeemed["api_key"] == "companion-test-key16"
+        assert redeemed["base_url"] == "http://127.0.0.1:8080"
+        assert redeemed["pin_sha256"].startswith("sha256/")
+
+        # Single-use
+        again = client.post(
+            "/api/v1/companion/pairing/redeem",
+            json={"pairing_code": code},
+        )
+        assert again.status_code == 400
+
+    def test_action_request_approve_reject(self):
+        executed = {"start": 0}
+
+        api = CompanionAPI(api_key="companion-test-key16", require_api_key=True)
+        api.register_control_callback(
+            "start_trading", lambda: executed.__setitem__("start", executed["start"] + 1) or True
+        )
+        client = api.app.test_client()
+
+        req = client.post(
+            "/api/v1/companion/actions",
+            headers={"Authorization": "Bearer companion-test-key16"},
+            json={"action": "start_trading", "requested_by": "phone"},
+        )
+        assert req.status_code == 201
+        action_id = req.get_json()["action"]["id"]
+
+        pending = client.get(
+            "/api/v1/companion/actions",
+            headers={"X-API-Key": "companion-test-key16"},
+        ).get_json()
+        assert pending["count"] == 1
+
+        approved = client.post(
+            f"/api/v1/companion/actions/{action_id}/approve",
+            headers={"X-API-Key": "companion-test-key16"},
+        )
+        assert approved.status_code == 200
+        assert approved.get_json()["executed"] is True
+        assert executed["start"] == 1
+
+        reject_req = client.post(
+            "/api/v1/companion/actions",
+            headers={"X-API-Key": "companion-test-key16"},
+            json={"action": "stop_trading"},
+        )
+        rid = reject_req.get_json()["action"]["id"]
+        rejected = client.post(
+            f"/api/v1/companion/actions/{rid}/reject",
+            headers={"X-API-Key": "companion-test-key16"},
+            json={"reason": "no"},
+        )
+        assert rejected.status_code == 200
+        assert rejected.get_json()["action"]["status"] == "rejected"
+
 
 class TestStrategyHealthDashboard:
     def test_strategies_endpoint_with_monitor(self):
@@ -188,3 +275,40 @@ class TestStrategyHealthDashboard:
         assert "Strategy Health" in html
         assert "/api/v1/strategies" in html
         assert "/api/v1/companion" in html
+        assert "History Charts" in html
+        assert "pairing/session" in html
+        assert "Pending Companion Actions" in html
+
+    def test_strategy_history_endpoint(self):
+        sm = StrategyMonitor()
+        sm.register_strategy("SMA_Crossover")
+        sm.record_signal("SMA_Crossover", execution_time=1.1)
+        sm.record_signal("SMA_Crossover", execution_time=1.3)
+
+        monitor = RemoteMonitorServer(
+            host="127.0.0.1",
+            port=18084,
+            api_key="monitor-test-key-16",
+            require_api_key=True,
+            strategy_monitor=sm,
+        )
+        client = monitor.app.test_client()
+        headers = {"Authorization": "Bearer monitor-test-key-16"}
+
+        all_hist = client.get("/api/v1/strategies/history", headers=headers)
+        assert all_hist.status_code == 200
+        payload = all_hist.get_json()
+        assert "SMA_Crossover" in payload["histories"]
+        assert payload["histories"]["SMA_Crossover"]
+        assert isinstance(payload["histories"]["SMA_Crossover"][0]["timestamp"], str)
+
+        one = client.get("/api/v1/strategies/SMA_Crossover/history?limit=10", headers=headers)
+        assert one.status_code == 200
+        assert one.get_json()["count"] >= 1
+
+        companion = client.get(
+            "/api/v1/companion/strategies/SMA_Crossover/history",
+            headers=headers,
+        )
+        assert companion.status_code == 200
+        assert companion.get_json()["strategy"] == "SMA_Crossover"

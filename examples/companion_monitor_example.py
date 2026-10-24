@@ -36,8 +36,10 @@ def main() -> None:
     print(f"Dashboard:  http://127.0.0.1:{monitor.port}/")
     print(f"Health:     http://127.0.0.1:{monitor.port}/api/v1/health")
     print(f"Strategies: curl -H 'Authorization: Bearer {api_key}' http://127.0.0.1:{monitor.port}/api/v1/strategies")
+    print(f"History:    curl -H 'Authorization: Bearer {api_key}' http://127.0.0.1:{monitor.port}/api/v1/strategies/history")
     print(f"Companion:  curl -H 'X-API-Key: {api_key}' http://127.0.0.1:{monitor.port}/api/v1/companion/portfolio")
-    print("Android scaffold: mobile/android-companion (GrapheneOS-friendly, read-only)")
+    print(f"Pairing:    curl -X POST -H 'X-API-Key: {api_key}' http://127.0.0.1:{monitor.port}/api/v1/companion/pairing/session")
+    print("Android: mobile/android-companion Compose UI — pair via dashboard QR / paste JSON")
 
     try:
         n = 0

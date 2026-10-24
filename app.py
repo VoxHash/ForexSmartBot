@@ -29,7 +29,7 @@ def main():
         # Create QApplication
         app = QApplication(sys.argv)
         app.setApplicationName("ForexSmartBot")
-        app.setApplicationVersion("3.3.0")
+        app.setApplicationVersion("3.3.1")
         app.setOrganizationName("VoxHash")
         
         # Set application properties (PyQt6 compatibility)

@@ -8,9 +8,12 @@ Broker keys and order routing stay on the desktop host.
 
 from __future__ import annotations
 
+import json
 import logging
+import secrets
 import threading
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -30,6 +33,127 @@ logger = logging.getLogger(__name__)
 PortfolioProvider = Callable[[], Dict[str, Any]]
 AlertsProvider = Callable[[], List[Dict[str, Any]]]
 StrategiesProvider = Callable[[], Dict[str, Any]]
+HistoryProvider = Callable[[Optional[str], int], Dict[str, Any]]
+
+PAIRING_SCHEME = "fsb-companion"
+PAIRING_TTL_SECONDS = 300
+ALLOWED_ACTIONS = frozenset({"start_trading", "stop_trading", "pause_trading"})
+
+
+class CompanionActionQueue:
+    """Pending high-level companion actions awaiting host approve/reject."""
+
+    def __init__(self, *, max_pending: int = 64):
+        self.max_pending = max_pending
+        self._lock = threading.Lock()
+        self._items: Dict[str, Dict[str, Any]] = {}
+
+    def request(self, action: str, *, requested_by: str = "companion") -> Optional[Dict[str, Any]]:
+        action = (action or "").strip()
+        if action not in ALLOWED_ACTIONS:
+            return None
+        with self._lock:
+            pending = [i for i in self._items.values() if i["status"] == "pending"]
+            if len(pending) >= self.max_pending:
+                return None
+            item_id = uuid.uuid4().hex
+            item = {
+                "id": item_id,
+                "action": action,
+                "status": "pending",
+                "requested_by": requested_by,
+                "created_at": datetime.now().isoformat(),
+                "resolved_at": None,
+                "reason": None,
+            }
+            self._items[item_id] = item
+            return dict(item)
+
+    def list_pending(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            return [dict(i) for i in self._items.values() if i["status"] == "pending"]
+
+    def get(self, action_id: str) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            item = self._items.get(action_id)
+            return dict(item) if item else None
+
+    def resolve(
+        self, action_id: str, *, approve: bool, reason: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            item = self._items.get(action_id)
+            if not item or item["status"] != "pending":
+                return None
+            item["status"] = "approved" if approve else "rejected"
+            item["resolved_at"] = datetime.now().isoformat()
+            item["reason"] = reason
+            return dict(item)
+
+
+class CompanionPairingStore:
+    """Short-lived pairing sessions for QR onboarding (phone redeems without prior key)."""
+
+    def __init__(self, *, ttl_seconds: int = PAIRING_TTL_SECONDS):
+        self.ttl_seconds = ttl_seconds
+        self._lock = threading.Lock()
+        self._sessions: Dict[str, Dict[str, Any]] = {}
+
+    def create(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        pin_sha256: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        code = secrets.token_urlsafe(12)
+        expires = datetime.now() + timedelta(seconds=self.ttl_seconds)
+        payload = {
+            "v": 1,
+            "scheme": PAIRING_SCHEME,
+            "base_url": base_url.rstrip("/"),
+            "pairing_code": code,
+            "expires_at": expires.isoformat(),
+            "pin_sha256": pin_sha256 or "",
+        }
+        with self._lock:
+            self._sessions[code] = {
+                "api_key": api_key,
+                "base_url": base_url.rstrip("/"),
+                "pin_sha256": pin_sha256 or "",
+                "expires_at": expires,
+                "redeemed": False,
+            }
+            # Drop expired
+            now = datetime.now()
+            dead = [k for k, v in self._sessions.items() if v["expires_at"] < now]
+            for k in dead:
+                del self._sessions[k]
+        return {
+            "pairing_code": code,
+            "expires_at": expires.isoformat(),
+            "ttl_seconds": self.ttl_seconds,
+            "qr_payload": payload,
+            "qr_text": json.dumps(payload, separators=(",", ":")),
+        }
+
+    def redeem(self, pairing_code: str) -> Optional[Dict[str, Any]]:
+        code = (pairing_code or "").strip()
+        with self._lock:
+            session = self._sessions.get(code)
+            if not session:
+                return None
+            if session["expires_at"] < datetime.now() or session["redeemed"]:
+                self._sessions.pop(code, None)
+                return None
+            session["redeemed"] = True
+            return {
+                "scheme": PAIRING_SCHEME,
+                "base_url": session["base_url"],
+                "api_key": session["api_key"],
+                "pin_sha256": session["pin_sha256"],
+                "redeemed_at": datetime.now().isoformat(),
+            }
 
 
 def _normalize_portfolio(raw: Dict[str, Any]) -> Dict[str, Any]:
@@ -143,7 +267,10 @@ class CompanionAPI:
         portfolio_provider: Optional[PortfolioProvider] = None,
         alerts_provider: Optional[AlertsProvider] = None,
         strategies_provider: Optional[StrategiesProvider] = None,
+        history_provider: Optional[HistoryProvider] = None,
         allow_control: bool = False,
+        public_base_url: Optional[str] = None,
+        pin_sha256: Optional[str] = None,
         url_prefix: str = "/api/v1/companion",
     ):
         self.app = app or Flask(__name__)
@@ -154,13 +281,18 @@ class CompanionAPI:
             require_api_key = not is_insecure_secret(self.api_key)
         self.require_api_key = require_api_key
         self.allow_control = allow_control
+        self.public_base_url = (public_base_url or "").rstrip("/")
+        self.pin_sha256 = (pin_sha256 or "").strip()
         self.url_prefix = url_prefix.rstrip("/") or "/api/v1/companion"
 
         self._portfolio_provider = portfolio_provider or (lambda: {})
         self._alerts_provider = alerts_provider or (lambda: [])
         self._strategies_provider = strategies_provider or (lambda: {"strategies": {}})
+        self._history_provider = history_provider
         self.webhook_notifier = WebhookNotifier()
         self.control_callbacks: Dict[str, Callable[[], bool]] = {}
+        self.action_queue = CompanionActionQueue()
+        self.pairing_store = CompanionPairingStore()
 
         self.setup_routes()
 
@@ -173,8 +305,14 @@ class CompanionAPI:
     def set_strategies_provider(self, provider: StrategiesProvider) -> None:
         self._strategies_provider = provider
 
+    def set_history_provider(self, provider: HistoryProvider) -> None:
+        self._history_provider = provider
+
+    def set_public_base_url(self, base_url: str) -> None:
+        self.public_base_url = (base_url or "").rstrip("/")
+
     def register_control_callback(self, action: str, callback: Callable[[], bool]) -> None:
-        """Register optional start/stop callbacks (disabled unless allow_control)."""
+        """Register optional start/stop callbacks (used on approve or allow_control)."""
         self.control_callbacks[action] = callback
 
     def _auth_response(self):
@@ -210,7 +348,10 @@ class CompanionAPI:
                         "portfolio": True,
                         "alerts": True,
                         "strategies": True,
+                        "history": self._history_provider is not None,
                         "webhooks": True,
+                        "pairing": True,
+                        "actions": True,
                         "control": self.allow_control,
                     },
                     "timestamp": datetime.now().isoformat(),
@@ -271,6 +412,32 @@ class CompanionAPI:
             except Exception as exc:
                 return jsonify({"error": str(exc)}), 500
 
+        @self.app.route(f"{prefix}/strategies/history", methods=["GET"])
+        def companion_strategies_history():
+            denied = self._auth_response()
+            if denied:
+                return denied
+            if not self._history_provider:
+                return jsonify({"error": "History not available"}), 404
+            try:
+                limit = int(request.args.get("limit", 100))
+                return jsonify(self._history_provider(None, limit))
+            except Exception as exc:
+                return jsonify({"error": str(exc)}), 500
+
+        @self.app.route(f"{prefix}/strategies/<strategy_name>/history", methods=["GET"])
+        def companion_strategy_history(strategy_name: str):
+            denied = self._auth_response()
+            if denied:
+                return denied
+            if not self._history_provider:
+                return jsonify({"error": "History not available"}), 404
+            try:
+                limit = int(request.args.get("limit", 100))
+                return jsonify(self._history_provider(strategy_name, limit))
+            except Exception as exc:
+                return jsonify({"error": str(exc)}), 500
+
         @self.app.route(f"{prefix}/devices/webhook", methods=["POST"])
         def register_webhook():
             denied = self._auth_response()
@@ -300,6 +467,93 @@ class CompanionAPI:
             url = str(data.get("url") or data.get("webhook_url") or "").strip()
             removed = self.webhook_notifier.unregister(url)
             return jsonify({"success": removed})
+
+        @self.app.route(f"{prefix}/pairing/session", methods=["POST"])
+        def pairing_session():
+            """Create QR pairing payload (authenticated host)."""
+            denied = self._auth_response()
+            if denied:
+                return denied
+            data = request.get_json(silent=True) or {}
+            base = str(
+                data.get("base_url")
+                or self.public_base_url
+                or request.host_url.rstrip("/")
+            ).rstrip("/")
+            pin = str(data.get("pin_sha256") or self.pin_sha256 or "").strip()
+            session = self.pairing_store.create(
+                base_url=base, api_key=self.api_key, pin_sha256=pin or None
+            )
+            return jsonify(session), 201
+
+        @self.app.route(f"{prefix}/pairing/redeem", methods=["POST"])
+        def pairing_redeem():
+            """Phone redeems short-lived pairing code (no prior API key)."""
+            data = request.get_json(silent=True) or {}
+            code = str(data.get("pairing_code") or data.get("code") or "").strip()
+            result = self.pairing_store.redeem(code)
+            if not result:
+                return jsonify({"error": "Invalid or expired pairing code"}), 400
+            return jsonify(result)
+
+        @self.app.route(f"{prefix}/actions", methods=["GET"])
+        def list_actions():
+            denied = self._auth_response()
+            if denied:
+                return denied
+            pending = self.action_queue.list_pending()
+            return jsonify({"pending": pending, "count": len(pending)})
+
+        @self.app.route(f"{prefix}/actions", methods=["POST"])
+        def request_action():
+            """Phone requests a high-level action (queued until host approves)."""
+            denied = self._auth_response()
+            if denied:
+                return denied
+            data = request.get_json(silent=True) or {}
+            action = str(data.get("action") or "").strip()
+            requested_by = str(data.get("requested_by") or "companion").strip() or "companion"
+            item = self.action_queue.request(action, requested_by=requested_by)
+            if not item:
+                return jsonify(
+                    {
+                        "error": "Invalid action or queue full",
+                        "allowed": sorted(ALLOWED_ACTIONS),
+                    }
+                ), 400
+            return jsonify({"action": item}), 201
+
+        @self.app.route(f"{prefix}/actions/<action_id>/approve", methods=["POST"])
+        def approve_action(action_id: str):
+            denied = self._auth_response()
+            if denied:
+                return denied
+            item = self.action_queue.resolve(action_id, approve=True)
+            if not item:
+                return jsonify({"error": "Action not found or already resolved"}), 404
+            cb = self.control_callbacks.get(item["action"])
+            executed = False
+            if cb:
+                try:
+                    executed = bool(cb())
+                except Exception as exc:
+                    logger.exception("Action callback failed")
+                    return jsonify(
+                        {"action": item, "executed": False, "error": str(exc)}
+                    ), 500
+            return jsonify({"action": item, "executed": executed})
+
+        @self.app.route(f"{prefix}/actions/<action_id>/reject", methods=["POST"])
+        def reject_action(action_id: str):
+            denied = self._auth_response()
+            if denied:
+                return denied
+            data = request.get_json(silent=True) or {}
+            reason = str(data.get("reason") or "").strip() or None
+            item = self.action_queue.resolve(action_id, approve=False, reason=reason)
+            if not item:
+                return jsonify({"error": "Action not found or already resolved"}), 404
+            return jsonify({"action": item})
 
         if self.allow_control:
 

@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.3.x** line (latest **3.3.0**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.3.x** line (latest **3.3.1**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -24,6 +24,7 @@ High-level milestones aligned with the current **3.3.x** line (latest **3.3.0**)
 ## Q2 2027
 - [x] Mobile monitoring companion (read-only portfolio/alerts) — first slice: `CompanionAPI` at `/api/v1/companion/*` (portfolio, positions, alerts, strategies, webhook register); mounted on `RemoteMonitorServer`; GrapheneOS-friendly `WebhookNotifier` (HTTPS, no FCM required); Android Kotlin scaffold under `mobile/android-companion/` (Retrofit client, no Play Services). Full store-ready Android UX / push UX still open.
 - [x] Web dashboard for strategy health — `GET /api/v1/strategies` (+ per-name), `StrategyMonitor.get_dashboard_payload()` / `StrategyHealth.to_dict()`, remote-monitor HTML Strategy Health table with live poll. Further polish (history charts, multi-host) still open.
+- [x] **Q2 polish (3.3.1)**: strategy history charts API + dashboard sparklines; QR pairing session/redeem; companion approve/reject action queue; Android Compose UI + ZXing QR image pairing + cert pinning hooks; F-Droid metadata draft. Remaining: live camera QR, encrypted local cache, published F-Droid listing, multi-host dashboard.
 
 ## Native performance core (in progress)
 - **Rust (`native/fsb_core` via PyO3/maturin)** for indicator math (SMA/ATR/RSI), rayon batch SMA, and a compact SMA-crossover equity loop — chosen over Go/Zig/C for memory safety + strong Python interop; Ruby is a poor fit for this CPU-bound goal.
@@ -32,7 +33,8 @@ High-level milestones aligned with the current **3.3.x** line (latest **3.3.0**)
 
 ## Future — Android / GrapheneOS
 - [x] **API + scaffold (3.3.0)**: Kotlin client talks to remote-monitor `/api/v1/companion/*`; webhook alerts; no Google deps in scaffold; broker keys stay on desktop.
-- Remaining: polished Compose UI, pairing/QR onboarding, approve/reject high-level actions, certificate pinning defaults, Play-/F-Droid-ready packaging, optional local encrypted cache.
+- [x] **Compose + pairing + approve/reject + pinning hooks (3.3.1)**: Material3 UI; QR paste / gallery decode (ZXing); action requests with host approve/reject; OkHttp `CertificatePinner` via `CERT_PINS` / pairing pin; F-Droid metadata draft.
+- Remaining: live CameraX QR scan, production cert-pin defaults for hosted monitors, Play-/F-Droid published builds, optional local encrypted cache.
 
 ## Future
 - Social / copy trading and marketplace growth

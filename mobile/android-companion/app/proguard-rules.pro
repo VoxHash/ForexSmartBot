@@ -1,3 +1,6 @@
 -keepclassmembers class dev.voxhash.fsbcompanion.model.** { *; }
+-keep class com.squareup.moshi.** { *; }
+-keep class com.google.zxing.** { *; }
 -dontwarn okhttp3.**
 -dontwarn retrofit2.**
+-dontwarn com.squareup.moshi.**

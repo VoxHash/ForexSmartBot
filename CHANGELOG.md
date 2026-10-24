@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.1] - 2026-10-24
+
+### Added
+- **Strategy history charts**: `GET /api/v1/strategies/history` (+ per-strategy); companion `/api/v1/companion/strategies/.../history`; dashboard canvas sparklines; ISO timestamps in `StrategyMonitor` history
+- **QR pairing**: `POST /api/v1/companion/pairing/session` (host) + `POST .../pairing/redeem` (phone); dashboard QR + JSON payload (`fsb-companion` scheme, 5‑minute TTL, single-use)
+- **Approve/reject actions**: companion action queue for `start_trading` / `stop_trading` / `pause_trading`; host approve runs registered callbacks; dashboard pending list
+- **Android Compose companion (0.2.0)**: Material3 UI, paste/QR-image pairing (ZXing, no GMS), session prefs, request start/stop, OkHttp cert pinning via `CERT_PINS` / pairing `pin_sha256`
+- **F-Droid metadata draft**: `mobile/android-companion/metadata/dev.voxhash.fsbcompanion.yml`
+
+### Changed
+- **Version**: Package/app bumped to **3.3.1**
+- **Remote monitor**: wires companion history + control callbacks into approve path
+
 ## [3.3.0] - 2026-10-24
 
 ### Added

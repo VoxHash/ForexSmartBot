@@ -192,6 +192,22 @@ class RemoteMonitorServer:
                 return denied
             return jsonify(self._strategies_payload())
 
+        @self.app.route("/api/v1/strategies/history", methods=["GET"])
+        def get_strategies_history():
+            """All strategy metrics history for charts (authenticated)."""
+            denied = self._auth_response()
+            if denied:
+                return denied
+            return jsonify(self._history_payload(None))
+
+        @self.app.route("/api/v1/strategies/<strategy_name>/history", methods=["GET"])
+        def get_strategy_history(strategy_name: str):
+            """Single strategy metrics history (authenticated)."""
+            denied = self._auth_response()
+            if denied:
+                return denied
+            return jsonify(self._history_payload(strategy_name))
+
         @self.app.route("/api/v1/strategies/<strategy_name>", methods=["GET"])
         def get_strategy(strategy_name: str):
             """Single strategy health (authenticated)."""
@@ -205,7 +221,8 @@ class RemoteMonitorServer:
             return jsonify({"strategy": strategies[strategy_name], "timestamp": payload.get("timestamp")})
 
     def _mount_companion(self) -> None:
-        """Mount read-only companion API on the same Flask app."""
+        """Mount companion API on the same Flask app."""
+        base = f"http://{self.host}:{self.port}"
         self.companion = CompanionAPI(
             app=self.app,
             api_key=self.api_key,
@@ -213,12 +230,30 @@ class RemoteMonitorServer:
             portfolio_provider=lambda: self.trading_data,
             alerts_provider=self._get_recent_alerts,
             strategies_provider=self._strategies_payload,
+            history_provider=lambda name, limit: self._history_payload(name, limit),
             allow_control=False,
+            public_base_url=base,
         )
 
     def set_strategy_monitor(self, monitor: Any) -> None:
         """Attach a StrategyMonitor for /api/v1/strategies and companion clients."""
         self.strategy_monitor = monitor
+        if self.companion is not None:
+            self.companion.set_history_provider(
+                lambda name, limit: self._history_payload(name, limit)
+            )
+
+    def register_control_callback(self, action: str, callback: Callable):
+        """
+        Register callback for remote control actions.
+
+        Args:
+            action: Action name ('start_trading', 'stop_trading', etc.)
+            callback: Callback function
+        """
+        self.control_callbacks[action] = callback
+        if self.companion is not None:
+            self.companion.register_control_callback(action, callback)
 
     def _strategies_payload(self) -> Dict:
         """Build strategy health JSON for dashboard / companion."""
@@ -238,6 +273,34 @@ class RemoteMonitorServer:
             payload = {"strategies": {}, "summary": {"total": 0, "by_status": {}}}
         payload["timestamp"] = datetime.now().isoformat()
         return payload
+
+    def _history_payload(
+        self, strategy_name: Optional[str] = None, limit: int = 100
+    ) -> Dict:
+        """Build strategy history JSON for charts."""
+        try:
+            from flask import has_request_context
+
+            if has_request_context() and request.args.get("limit") is not None:
+                limit = int(request.args.get("limit"))
+        except (TypeError, ValueError):
+            pass
+        if self.strategy_monitor is not None and hasattr(
+            self.strategy_monitor, "get_history_payload"
+        ):
+            return self.strategy_monitor.get_history_payload(strategy_name, limit=limit)
+        if strategy_name:
+            return {
+                "strategy": strategy_name,
+                "history": [],
+                "count": 0,
+                "timestamp": datetime.now().isoformat(),
+            }
+        return {
+            "histories": {},
+            "count": 0,
+            "timestamp": datetime.now().isoformat(),
+        }
 
     def _auth_response(self):
         """Return 401 response tuple when auth fails, else None."""
@@ -312,12 +375,19 @@ class RemoteMonitorServer:
         .health-critical { color: #f44336; }
         .health-unknown { color: #9e9e9e; }
         .badge { display:inline-block; padding:2px 8px; border-radius:4px; background:#444; font-size:12px; }
+        .chart-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px; margin-top:12px; }
+        .chart-card { background:#3d3d3d; padding:12px; border-radius:6px; }
+        .chart-card h3 { margin:0 0 8px; font-size:14px; color:#ccc; }
+        canvas.spark { width:100%; height:80px; background:#2a2a2a; border-radius:4px; }
+        #pairing-qr { background:#fff; padding:12px; display:inline-block; border-radius:8px; }
+        #pairing-text { width:100%; min-height:72px; font-family:monospace; font-size:12px; }
+        .action-row button { margin-right:6px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>ForexSmartBot Remote Monitor</h1>
-        <p style="color:#aaa;">Strategy health dashboard + read-only companion API at <code>/api/v1/companion/*</code></p>
+        <p style="color:#aaa;">Strategy health + history charts + companion pairing / approve-reject at <code>/api/v1/companion/*</code></p>
 
         <div class="status-card">
             <h2>API Key</h2>
@@ -372,6 +442,23 @@ class RemoteMonitorServer:
                 </thead>
                 <tbody id="strategies-body"></tbody>
             </table>
+            <h2 style="margin-top:20px;">History Charts</h2>
+            <div id="history-charts" class="chart-grid"></div>
+        </div>
+
+        <div class="status-card">
+            <h2>Companion Pairing (QR)</h2>
+            <p style="color:#aaa;">Create a short-lived session; scan or paste on the Android companion.</p>
+            <button class="btn btn-start" onclick="createPairing()">Create pairing QR</button>
+            <div id="pairing-meta" style="color:#aaa;margin:8px 0;"></div>
+            <div id="pairing-qr"></div>
+            <textarea id="pairing-text" readonly placeholder="QR JSON payload appears here"></textarea>
+        </div>
+
+        <div class="status-card">
+            <h2>Pending Companion Actions</h2>
+            <p style="color:#aaa;">Phone-requested start/stop/pause — approve or reject on this host.</p>
+            <div id="actions-list" style="color:#aaa;">No pending actions</div>
         </div>
 
         <div class="status-card">
@@ -397,6 +484,7 @@ class RemoteMonitorServer:
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         function authHeaders() {
             const key = sessionStorage.getItem('fsb_api_key') || '';
@@ -421,6 +509,59 @@ class RemoteMonitorServer:
             if (s === 'warning') return 'health-warning';
             if (s === 'critical') return 'health-critical';
             return 'health-unknown';
+        }
+
+        function drawSpark(canvas, series, key, color) {
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth * (window.devicePixelRatio || 1);
+            const h = canvas.height = 80 * (window.devicePixelRatio || 1);
+            ctx.clearRect(0, 0, w, h);
+            const vals = (series || []).map(p => Number(p[key] || 0));
+            if (vals.length < 2) {
+                ctx.fillStyle = '#666';
+                ctx.font = '12px sans-serif';
+                ctx.fillText('Not enough samples', 8, h/2);
+                return;
+            }
+            const min = Math.min(...vals), max = Math.max(...vals);
+            const span = (max - min) || 1;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            vals.forEach((v, i) => {
+                const x = (i / (vals.length - 1)) * (w - 4) + 2;
+                const y = h - 4 - ((v - min) / span) * (h - 8);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function updateHistoryCharts() {
+            fetch('/api/v1/strategies/history?limit=80', {headers: authHeaders()})
+                .then(async r => {
+                    if (r.status === 401) throw new Error('unauthorized');
+                    return r.json();
+                })
+                .then(data => {
+                    const histories = data.histories || {};
+                    const root = document.getElementById('history-charts');
+                    const names = Object.keys(histories);
+                    if (!names.length) {
+                        root.innerHTML = '<div style="color:#888;">No history yet — signals populate charts</div>';
+                        return;
+                    }
+                    root.innerHTML = names.map(name => {
+                        const id = 'spark-' + name.replace(/[^a-zA-Z0-9_-]/g, '_');
+                        return '<div class="chart-card"><h3>' + name + ' · signals</h3>' +
+                            '<canvas class="spark" id="' + id + '"></canvas></div>';
+                    }).join('');
+                    names.forEach(name => {
+                        const id = 'spark-' + name.replace(/[^a-zA-Z0-9_-]/g, '_');
+                        const el = document.getElementById(id);
+                        if (el) drawSpark(el, histories[name], 'signal_count', '#4CAF50');
+                    });
+                })
+                .catch(() => {});
         }
 
         function updateStrategies() {
@@ -456,6 +597,72 @@ class RemoteMonitorServer:
                     }).join('');
                 })
                 .catch(() => {});
+            updateHistoryCharts();
+            updateActions();
+        }
+
+        function createPairing() {
+            fetch('/api/v1/companion/pairing/session', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({}),
+            })
+            .then(async r => {
+                if (r.status === 401) throw new Error('unauthorized');
+                return r.json();
+            })
+            .then(data => {
+                const text = data.qr_text || JSON.stringify(data.qr_payload || {});
+                document.getElementById('pairing-text').value = text;
+                document.getElementById('pairing-meta').textContent =
+                    'Code ' + data.pairing_code + ' · expires ' + data.expires_at +
+                    ' · TTL ' + data.ttl_seconds + 's';
+                const box = document.getElementById('pairing-qr');
+                box.innerHTML = '';
+                if (window.QRCode) {
+                    new QRCode(box, { text: text, width: 192, height: 192 });
+                } else {
+                    box.textContent = 'QR library unavailable — copy JSON below';
+                }
+            })
+            .catch(err => alert('Pairing failed: ' + err));
+        }
+
+        function updateActions() {
+            fetch('/api/v1/companion/actions', {headers: authHeaders()})
+                .then(async r => {
+                    if (r.status === 401) throw new Error('unauthorized');
+                    return r.json();
+                })
+                .then(data => {
+                    const pending = data.pending || [];
+                    const root = document.getElementById('actions-list');
+                    if (!pending.length) {
+                        root.innerHTML = 'No pending actions';
+                        return;
+                    }
+                    root.innerHTML = pending.map(a =>
+                        '<div class="action-row" style="margin:8px 0;">' +
+                        '<span class="badge">' + a.action + '</span> ' +
+                        '<span style="color:#aaa;">' + a.id.slice(0,8) + ' · ' + a.requested_by + ' · ' + a.created_at + '</span> ' +
+                        '<button class="btn btn-start" onclick="resolveAction(\\'' + a.id + '\\', true)">Approve</button>' +
+                        '<button class="btn btn-stop" onclick="resolveAction(\\'' + a.id + '\\', false)">Reject</button>' +
+                        '</div>'
+                    ).join('');
+                })
+                .catch(() => {});
+        }
+
+        function resolveAction(id, approve) {
+            const path = approve ? 'approve' : 'reject';
+            fetch('/api/v1/companion/actions/' + id + '/' + path, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify(approve ? {} : {reason: 'rejected from dashboard'}),
+            })
+            .then(r => r.json())
+            .then(() => updateActions())
+            .catch(err => alert(err));
         }
 
         function updateStatus() {
@@ -534,16 +741,6 @@ class RemoteMonitorServer:
         """
         self.trading_data.update(data)
         self.trading_data["last_update"] = datetime.now().isoformat()
-
-    def register_control_callback(self, action: str, callback: Callable):
-        """
-        Register callback for remote control actions.
-
-        Args:
-            action: Action name ('start_trading', 'stop_trading', etc.)
-            callback: Callback function
-        """
-        self.control_callbacks[action] = callback
 
     def register_alert_callback(self, callback: Callable):
         """

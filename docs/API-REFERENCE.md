@@ -83,8 +83,12 @@ Remote monitor (default `http://localhost:8080`):
 - `GET /api/v1/health` (public)
 - `GET /api/v1/status` / `positions` / `trades` / `alerts` (auth)
 - `GET /api/v1/strategies` / `GET /api/v1/strategies/<name>` — strategy health dashboard
+- `GET /api/v1/strategies/history` / `GET /api/v1/strategies/<name>/history` — metrics history for charts
 - `GET /api/v1/companion/health` (public)
 - `GET /api/v1/companion/portfolio` / `positions` / `alerts` / `strategies` (auth, read-only)
+- `GET /api/v1/companion/strategies/history` (+ per-name) — companion history
+- `POST /api/v1/companion/pairing/session` (auth) / `POST .../pairing/redeem` (public, single-use)
+- `GET|POST /api/v1/companion/actions` + `.../<id>/approve|reject` — host-gated control
 - `POST|DELETE /api/v1/companion/devices/webhook` — HTTPS webhook registration
 
 Authentication:

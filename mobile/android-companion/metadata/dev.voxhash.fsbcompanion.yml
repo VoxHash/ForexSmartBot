@@ -1,0 +1,32 @@
+# F-Droid metadata draft for the GrapheneOS-friendly companion.
+# Submit via https://gitlab.com/fdroid/fdroiddata after signing releases.
+Categories:
+  - Money
+  - Connectivity
+License: MIT
+AuthorName: VoxHash
+AuthorEmail: contact@voxhash.dev
+WebSite: https://github.com/VoxHash/ForexSmartBot
+SourceCode: https://github.com/VoxHash/ForexSmartBot
+IssueTracker: https://github.com/VoxHash/ForexSmartBot/issues
+
+RepoType: git
+Repo: https://github.com/VoxHash/ForexSmartBot.git
+
+Builds:
+  - versionName: 0.2.0
+    versionCode: 2
+    commit: main
+    subdir: mobile/android-companion/app
+    gradle:
+      - yes
+
+AutoUpdateMode: None
+UpdateCheckMode: None
+CurrentVersion: 0.2.0
+CurrentVersionCode: 2
+
+Description: |
+  Read-only ForexSmartBot companion for portfolio, strategy health, and
+  host-approved start/stop requests. Pairs via QR with the desktop remote
+  monitor. No Google Play Services / FCM; optional OkHttp certificate pinning.

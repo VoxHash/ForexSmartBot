@@ -133,47 +133,84 @@ class StrategyMonitor:
         else:
             health.status = HealthStatus.UNKNOWN
             
-        # Store metrics snapshot
+        # Store metrics snapshot (ISO timestamps for REST / charts)
         self.metrics_history[strategy_name].append({
-            'timestamp': datetime.now(),
-            'status': health.status.value,
-            'signal_count': health.signal_count,
-            'error_count': health.error_count,
-            'execution_time_avg': health.execution_time_avg
+            "timestamp": datetime.now().isoformat(),
+            "status": health.status.value,
+            "signal_count": health.signal_count,
+            "error_count": health.error_count,
+            "execution_time_avg": health.execution_time_avg,
         })
-        
+
         # Keep only last 1000 metrics
         if len(self.metrics_history[strategy_name]) > 1000:
             self.metrics_history[strategy_name] = self.metrics_history[strategy_name][-1000:]
-            
+
         # Trigger callbacks
         for callback in self.callbacks:
             try:
                 callback(strategy_name, health)
             except Exception as e:
                 print(f"Error in monitor callback: {e}")
-                
+
     def get_health(self, strategy_name: str) -> Optional[StrategyHealth]:
         """Get current health status for a strategy."""
         return self.strategies.get(strategy_name)
-        
+
     def get_all_health(self) -> Dict[str, StrategyHealth]:
         """Get health status for all strategies."""
         return self.strategies.copy()
-        
+
     def add_callback(self, callback: Callable[[str, StrategyHealth], None]) -> None:
         """Add a callback function for health updates."""
         self.callbacks.append(callback)
-        
+
+    @staticmethod
+    def _serialize_history_point(point: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize a history sample for JSON clients."""
+        ts = point.get("timestamp")
+        if isinstance(ts, datetime):
+            ts = ts.isoformat()
+        return {
+            "timestamp": ts,
+            "status": point.get("status"),
+            "signal_count": int(point.get("signal_count") or 0),
+            "error_count": int(point.get("error_count") or 0),
+            "execution_time_avg": float(point.get("execution_time_avg") or 0.0),
+        }
+
     def get_metrics_history(self, strategy_name: str, limit: int = 100) -> List[Dict[str, Any]]:
-        """Get metrics history for a strategy."""
+        """Get metrics history for a strategy (JSON-serializable)."""
         history = self.metrics_history.get(strategy_name, [])
-        return history[-limit:]
-    
+        limit = max(1, min(int(limit or 100), 1000))
+        return [self._serialize_history_point(p) for p in history[-limit:]]
+
+    def get_history_payload(
+        self, strategy_name: Optional[str] = None, limit: int = 100
+    ) -> Dict[str, Any]:
+        """History for one strategy or all strategies (chart-friendly)."""
+        limit = max(1, min(int(limit or 100), 1000))
+        if strategy_name:
+            series = self.get_metrics_history(strategy_name, limit=limit)
+            return {
+                "strategy": strategy_name,
+                "history": series,
+                "count": len(series),
+                "timestamp": datetime.now().isoformat(),
+            }
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for name in self.strategies:
+            out[name] = self.get_metrics_history(name, limit=limit)
+        return {
+            "histories": out,
+            "count": sum(len(v) for v in out.values()),
+            "timestamp": datetime.now().isoformat(),
+        }
+
     def get_strategy_statuses(self) -> Dict[str, Dict[str, Any]]:
         """
         Get status information for all strategies in a format suitable for UI display.
-        
+
         Returns:
             Dictionary mapping strategy names to status dictionaries with 'status' and 'performance' keys
         """
