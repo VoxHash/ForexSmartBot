@@ -1,5 +1,5 @@
 """
-API Server for ForexSmartBot v3.3.0
+API Server for ForexSmartBot
 Provides REST API and WebSocket API for external integrations.
 """
 
@@ -13,15 +13,25 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import jwt
 from functools import wraps
 from threading import Thread
 import websockets
 from websockets.server import serve
 from dotenv import load_dotenv
 
+from .auth_utils import (
+    constant_time_equals,
+    extract_bearer_or_api_key,
+    is_insecure_secret,
+    package_version,
+    resolve_api_key,
+    validate_server_credentials,
+)
+
 # Ensure .env is loaded
 load_dotenv(override=False)
+
+logger = logging.getLogger(__name__)
 
 
 class APIServer:
@@ -40,8 +50,8 @@ class APIServer:
         """
         self.host = host or os.getenv('API_HOST', '127.0.0.1')
         self.port = port or int(os.getenv('API_PORT', '5000'))
-        self.api_key = api_key or os.getenv('API_KEY', '')
-        self.secret_key = secret_key or os.getenv('API_SECRET_KEY', 'default-secret-key-change-in-production')
+        self.api_key = resolve_api_key(api_key, env_names=('API_KEY',))
+        self.secret_key = secret_key or os.getenv('API_SECRET_KEY', '')
         
         self.app = Flask(__name__)
         CORS(self.app)
@@ -60,16 +70,28 @@ class APIServer:
         self.setup_routes()
         self.server_thread = None
         self.running = False
+        self.started_at: Optional[datetime] = None
         
     def setup_routes(self):
         """Setup API routes."""
-        
+
+        @self.app.route('/healthz', methods=['GET'])
         @self.app.route('/api/v1/health', methods=['GET'])
         def health():
-            """Health check endpoint."""
+            """Health check endpoint (public)."""
+            broker_ok = False
+            if self.broker is not None:
+                try:
+                    broker_ok = bool(self.broker.is_connected()) if hasattr(self.broker, 'is_connected') else True
+                except Exception:
+                    broker_ok = False
             return jsonify({
-                'status': 'healthy',
-                'version': '3.3.0',
+                'status': 'healthy' if self.running else 'starting',
+                'service': 'api_server',
+                'version': package_version(),
+                'auth_configured': not is_insecure_secret(self.api_key),
+                'broker_connected': broker_ok,
+                'started_at': self.started_at.isoformat() if self.started_at else None,
                 'timestamp': datetime.now().isoformat()
             })
             
@@ -193,20 +215,19 @@ class APIServer:
                 return jsonify({'error': str(e)}), 500
                 
     def require_auth(self, f):
-        """Decorator for API authentication."""
+        """Decorator for API authentication (Bearer or X-API-Key, constant-time)."""
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            if not self.api_key:
+            if is_insecure_secret(self.api_key):
                 return jsonify({'error': 'API key not configured'}), 500
-                
-            auth_header = request.headers.get('Authorization', '')
-            if not auth_header.startswith('Bearer '):
-                return jsonify({'error': 'Missing or invalid authorization header'}), 401
-                
-            token = auth_header[7:]
-            if token != self.api_key:
+
+            token = extract_bearer_or_api_key(
+                request.headers.get('Authorization', ''),
+                request.headers.get('X-API-Key', ''),
+            )
+            if not constant_time_equals(token, self.api_key):
                 return jsonify({'error': 'Invalid API key'}), 401
-                
+
             return f(*args, **kwargs)
         return decorated_function
         
@@ -226,10 +247,19 @@ class APIServer:
         """Start the API server."""
         if self.running:
             return
-            
+
+        validate_server_credentials(
+            self.api_key,
+            host=self.host,
+            secret_key=self.secret_key or None,
+            service_name='APIServer',
+        )
+
         self.running = True
+        self.started_at = datetime.now()
         self.server_thread = Thread(target=self._run_server, daemon=True)
         self.server_thread.start()
+        logger.info("API server started on http://%s:%s", self.host, self.port)
         print(f"API server started on http://{self.host}:{self.port}")
         
     def stop(self):
@@ -257,36 +287,54 @@ class WebSocketServer:
         """
         self.host = host or os.getenv('WS_HOST', '127.0.0.1')
         self.port = port or int(os.getenv('WS_PORT', '8765'))
-        self.api_key = api_key or os.getenv('API_KEY', '')
+        self.api_key = resolve_api_key(api_key, env_names=('API_KEY', 'WS_API_KEY'))
         self.clients = set()
+        self.authenticated_clients = set()
         self.running = False
         self.broker = None
         
     async def register_client(self, websocket, path):
-        """Register a new WebSocket client."""
-        # Simple authentication check
-        if self.api_key:
-            # In production, implement proper authentication
-            pass
-            
+        """Register a new WebSocket client (must auth when API key configured)."""
         self.clients.add(websocket)
         print(f"WebSocket client connected: {websocket.remote_address}")
         
         try:
             async for message in websocket:
-                # Handle incoming messages
                 await self.handle_message(websocket, message)
         except websockets.exceptions.ConnectionClosed:
             pass
         finally:
-            self.clients.remove(websocket)
+            self.clients.discard(websocket)
+            self.authenticated_clients.discard(websocket)
             print(f"WebSocket client disconnected: {websocket.remote_address}")
+
+    def _ws_authorized(self, websocket) -> bool:
+        if is_insecure_secret(self.api_key):
+            return True
+        return websocket in self.authenticated_clients
             
     async def handle_message(self, websocket, message):
         """Handle incoming WebSocket message."""
         try:
             data = json.loads(message)
             command = data.get('command')
+
+            if command == 'auth':
+                token = data.get('token') or data.get('api_key') or ''
+                if constant_time_equals(token, self.api_key):
+                    self.authenticated_clients.add(websocket)
+                    await websocket.send(json.dumps({'type': 'auth', 'ok': True}))
+                else:
+                    self.authenticated_clients.discard(websocket)
+                    await websocket.send(json.dumps({'type': 'auth', 'ok': False}))
+                return
+
+            if not self._ws_authorized(websocket):
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': 'Unauthorized — send {"command":"auth","token":"..."} first'
+                }))
+                return
             
             if command == 'subscribe':
                 symbol = data.get('symbol')

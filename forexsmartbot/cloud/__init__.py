@@ -1,5 +1,5 @@
 """
-Cloud Integration Module for ForexSmartBot v3.3.0
+Cloud Integration Module for ForexSmartBot
 Provides cloud sync, remote monitoring, and API access.
 """
 
@@ -9,6 +9,8 @@ from .api_server import APIServer, WebSocketServer
 from .mobile_api import MobileAppAPI, PushNotificationService
 from .security import SecurityManager, RateLimiter
 from .api_client import APIClient, WebSocketClient
+from .error_handler import CloudErrorHandler, CloudHealthMonitor, retry_call
+from .auth_utils import generate_api_token, package_version
 
 __all__ = [
     'CloudSyncManager',
@@ -21,4 +23,9 @@ __all__ = [
     'RateLimiter',
     'APIClient',
     'WebSocketClient',
+    'CloudErrorHandler',
+    'CloudHealthMonitor',
+    'retry_call',
+    'generate_api_token',
+    'package_version',
 ]

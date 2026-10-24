@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.2.x** line (latest **3.2.4**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.2.x** line (latest **3.2.5**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -19,7 +19,7 @@ High-level milestones aligned with the current **3.2.x** line (latest **3.2.4**)
 ## Q1 2027
 - [x] Advanced analytics dashboard (UI polish and live metrics) — live KPI cards + portfolio/risk tables (`build_live_metrics` / `PortfolioAnalyticsWidget`); risk dialog loads portfolio trades; main-window refresh hook
 - [x] Strategy backtesting UI improvements — KPI cards, equity curve tab, trades table, date presets, cancel, JSON/CSV export; combo stores strategy id via `userData`
-- [ ] Remote monitoring and cloud sync hardening
+- [x] Remote monitoring and cloud sync hardening — auth (Bearer/`X-API-Key`, constant-time), `/healthz` + monitor health, sync retry/backoff + pending queue + auto-sync thread, JWT/PBKDF2 security fixes, docs + `tests/test_cloud_hardening.py` (first production-ready slice; hosted multi-tenant cloud backend and full mobile companion remain Q2+)
 
 ## Q2 2027
 - Mobile monitoring companion (read-only portfolio/alerts)

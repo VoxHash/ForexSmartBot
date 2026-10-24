@@ -1,17 +1,25 @@
-# Cloud Integration Guide - ForexSmartBot v3.3.0
+# Cloud Integration Guide - ForexSmartBot v3.2.5
 
 ## Quick Start
+
+Install optional remote extras when needed:
+
+```bash
+pip install 'forexsmartbot[remote]'
+```
 
 ### 1. Enable Cloud Sync
 
 ```python
+import os
 from forexsmartbot.cloud.cloud_sync import CloudSyncManager
 from forexsmartbot.services.persistence import SettingsManager
 
-# Initialize
+# Initialize (retries + pending queue built in)
 cloud_sync = CloudSyncManager(
-    api_endpoint='https://api.forexsmartbot.cloud',
-    api_key=os.getenv('CLOUD_API_KEY')
+    api_endpoint=os.getenv('CLOUD_API_ENDPOINT', 'https://api.forexsmartbot.cloud'),
+    api_key=os.getenv('CLOUD_API_KEY'),
+    max_retries=3,
 )
 
 # Sync settings
@@ -21,18 +29,35 @@ settings = {
     'risk_pct': settings_manager.get('risk_pct')
 }
 cloud_sync.sync_settings(settings)
+cloud_sync.enable_auto_sync(interval_seconds=300)  # background flush + re-sync
+print(cloud_sync.get_sync_status())
+print(cloud_sync.check_endpoint_health())
 ```
 
 ### 2. Start Remote Monitor
 
 ```python
+import os
 from forexsmartbot.cloud.remote_monitor import RemoteMonitorServer
+from forexsmartbot.cloud.auth_utils import generate_api_token
 
-monitor = RemoteMonitorServer(host='127.0.0.1', port=8080)
+api_key = os.getenv('API_KEY') or generate_api_token()
+monitor = RemoteMonitorServer(
+    host='127.0.0.1',
+    port=8080,
+    api_key=api_key,  # required for authenticated status/control
+)
 monitor.start()
 
-# Access at http://127.0.0.1:8080
+# Public health (no auth): http://127.0.0.1:8080/healthz
+# Dashboard: http://127.0.0.1:8080  (paste API key in the page)
+# Authenticated status:
+#   curl -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8080/api/v1/status
+#   curl -H "X-API-Key: $API_KEY" http://127.0.0.1:8080/api/v1/status
 ```
+
+Non-loopback binds require a strong `API_KEY` (16+ chars) unless
+`FSB_ALLOW_INSECURE_MONITOR=1` is set (local/dev only).
 
 ### 3. Start API Server
 
@@ -42,10 +67,11 @@ from forexsmartbot.cloud.api_server import APIServer
 api_server = APIServer(
     host='127.0.0.1',
     port=5000,
-    api_key='YOUR_API_KEY'
+    api_key='YOUR_API_KEY'  # min 16 chars; Bearer or X-API-Key
 )
 api_server.set_broker(broker)
 api_server.start()
+# GET /healthz and /api/v1/health are public
 ```
 
 ## Integration with Main Application
@@ -263,16 +289,16 @@ print(f"Cloud API Status: {status['status']}")
 
 ## Best Practices
 
-1. **Enable cloud sync for multi-device usage**
-2. **Use remote monitor for monitoring from anywhere**
-3. **Implement proper authentication for API access**
-4. **Monitor API usage and set rate limits**
-5. **Use error handling for all cloud operations**
-6. **Regularly check service health**
-7. **Keep API keys secure and rotate regularly**
+1. **Always set `API_KEY` / `CLOUD_API_KEY`** (16+ random chars); prefer `generate_api_token()`
+2. **Bind monitors to `127.0.0.1`** unless TLS termination and a strong key are in place
+3. **Use Bearer or `X-API-Key`** on every non-health endpoint
+4. **Rely on sync retries** (`max_retries`) and call `flush_pending()` after outages
+5. **Probe `/healthz`** from uptime monitors; keep status/control authenticated
+6. **Set `API_SECRET_KEY`** for stable JWT signing across process restarts
+7. **Rotate keys** and never commit `.env` secrets
 
 ---
 
-**Version**: 3.3.0  
-**Last Updated**: January 2026
+**Version**: 3.2.5  
+**Last Updated**: October 2026
 

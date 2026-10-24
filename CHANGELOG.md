@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.2.5] - 2026-10-24
+
+### Added
+- **Remote monitor**: Public `/healthz` and `/api/v1/health`; alert ring buffer with POST/GET; dashboard session API-key field (Bearer / `X-API-Key`)
+- **Cloud sync**: Exponential backoff + jitter retries, failed-payload pending queue with `flush_pending()`, real auto-sync daemon thread, `check_endpoint_health()`
+- **Auth helpers**: `forexsmartbot.cloud.auth_utils` (constant-time compare, token extract, insecure-secret detection, credential bind checks)
+- **API client**: `health()` probe, request retries, WebSocket `auth` command support
+- **Tests**: `tests/test_cloud_hardening.py` for auth, retry, sync queue, and remote monitor Flask routes
+
+### Changed
+- **Security**: JWT includes `jti`/`iss`; PBKDF2 password hashing (legacy SHA-256 still verified); ephemeral secret when `API_SECRET_KEY` is weak
+- **API / remote servers**: Refuse weak keys on non-loopback binds unless `FSB_ALLOW_INSECURE_MONITOR=1`; constant-time API key checks
+- **Version**: Package/app bumped to **3.2.5** (includes post-`v3.2.4` Strategy Tests CI fixes on main)
+
+### Fixed
+- **CI / Strategy Tests** (post-tag on main): Soft SL/TP sandbox non-fatal; PaperBroker API alignment; volatility sizing; empty-market harden; SMA/RSI-only CI set; `test_config` wiring into Strategy Tests check step
+
 ## [3.2.4] - 2026-10-24
 
 ### Added
