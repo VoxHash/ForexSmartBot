@@ -11,7 +11,7 @@ on:
 
 jobs:
   test-strategies:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     
     strategy:
       fail-fast: false
@@ -73,7 +73,7 @@ jobs:
         fi
 
   benchmark-strategies:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FSB_SKIP_HEAVY_ML: "1"
     
