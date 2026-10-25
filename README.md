@@ -14,6 +14,7 @@
 ## ✨ Features
 
 - **Modern Trading Desk UI (3.4.0)**: Left nav, content stage, and session strip (equity / P&L / connection) with VoxHash dark branding
+- **Paper / sandbox venues (3.4.2)**: Venue Paper (live public prices + local fills) and Binance Spot Test Network sandbox orders (no mainnet)
 - **Multi-Strategy Trading**: 17+ built-in strategies including 7 ML-based approaches
 - **Real-time Monitoring**: Live portfolio tracking with P&L updates and health checks
 - **Risk Management**: Advanced risk controls with Kelly Criterion and drawdown protection
@@ -133,6 +134,7 @@ Full configuration reference: [docs/Configuration-Guide.md](docs/Configuration-G
 - **API Reference**: [Unified API Reference](docs/API-REFERENCE.md)
 - **Architecture**: [System Architecture](docs/ARCHITECTURE.md)
 - **v3.4.0 Shell**: [Modern Trading Desk](docs/V3.4.0_FEATURES.md)
+- **v3.4.2 Paper/Sandbox**: [Venue Paper + Binance Sandbox](docs/V3.4.2_FEATURES.md)
 - **Data Providers**: [Provider Setup Guide](docs/DATA_PROVIDERS_SETUP.md)
 - **Examples**: [Example Scripts](examples/)
 - **FAQ**: [Frequently Asked Questions](docs/FAQ.md)

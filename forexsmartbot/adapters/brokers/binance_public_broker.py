@@ -43,10 +43,22 @@ class BinancePublicBroker(IBroker):
         self._session = requests.Session()
         self._session.headers.update(
             {
-                "User-Agent": "ForexSmartBot/3.4.1",
+                "User-Agent": "ForexSmartBot/3.4.2",
                 "Accept": "application/json",
             }
         )
+
+    def reconnect(self) -> bool:
+        """Re-open the public testnet session."""
+        self.disconnect()
+        self._session = requests.Session()
+        self._session.headers.update(
+            {
+                "User-Agent": "ForexSmartBot/3.4.2",
+                "Accept": "application/json",
+            }
+        )
+        return self.connect()
 
     def connect(self) -> bool:
         try:

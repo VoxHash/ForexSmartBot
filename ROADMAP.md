@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.4.x** line (latest **3.4.1**; prior **3.4.0** / **3.3.9**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.4.x** line (latest **3.4.2**; prior **3.4.1** / **3.4.0**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -49,12 +49,12 @@ High-level milestones aligned with the current **3.4.x** line (latest **3.4.1**;
 - Remaining: published F-Droid / Play store listing (metadata draft ready; submit outside this repo).
 
 ## Future — Multi-venue CEX / DEX (commodities + FX / crypto pairs)
-Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Research + thin public adapters shipped in 3.4.1** — no authenticated CEX/DEX order flow yet.
+Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Research + public adapters in 3.4.1; paper/sandbox E2E in 3.4.2** — mainnet live trading still open.
 
 Phased delivery (realistic order):
 - [x] **Research (3.4.1)**: Map symbol/asset coverage (FX pairs, commodities, spot crypto) and venue capabilities for **centralized exchanges/brokers** (**Binance**, **Kraken**) and **DEX aggregators** (**1inch**). Live public probes + `docs/MULTI_VENUE_RESEARCH.md`; prefer testnet/sandbox docs first.
 - [x] **Adapters (3.4.1, public/read-only)**: Thin `KrakenPublicBroker` + `BinancePublicBroker` behind Settings broker mode / env; PyQt stays on the host; no keys in the mobile companion. Authenticated trade adapters still open.
-- [ ] **Paper / sandbox**: Wire paper or venue testnet paths end-to-end (orders, positions, reconnect) before any mainnet funds.
+- [x] **Paper / sandbox (3.4.2)**: `VenuePaperBroker` (live public MD + local fills) and `BinanceSandboxBroker` (Spot Test Network HMAC orders/positions/reconnect); Settings modes; mainnet URLs refused; `tests/test_paper_sandbox.py`.
 - [ ] **Live (opt-in)**: Production credentials only via local `.env` / UI secrets store; least-privilege API keys (trade-only where possible; no withdraw); kill-switch and risk limits reuse existing risk engine.
 
 Opsec (required for this milestone):

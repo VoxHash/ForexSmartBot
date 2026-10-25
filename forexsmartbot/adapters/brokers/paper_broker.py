@@ -23,6 +23,11 @@ class PaperBroker(IBroker):
     def disconnect(self) -> None:
         """Disconnect from paper broker."""
         self._connected = False
+
+    def reconnect(self) -> bool:
+        """Re-open the paper session (ledger preserved)."""
+        self.disconnect()
+        return self.connect()
         
     def is_connected(self) -> bool:
         """Check if connected."""

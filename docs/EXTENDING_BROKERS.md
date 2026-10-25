@@ -71,6 +71,8 @@ The paper broker simulates trading without real money:
 from forexsmartbot.adapters.brokers.paper_broker import PaperBroker
 
 broker = PaperBroker(initial_balance=10000.0)
+broker.connect()
+broker.reconnect()  # ledger preserved
 ```
 
 **Features:**
@@ -78,6 +80,20 @@ broker = PaperBroker(initial_balance=10000.0)
 - Tracks positions and PnL
 - No real money at risk
 - Perfect for backtesting
+
+### Venue Paper / Binance Sandbox (3.4.2)
+
+```python
+from forexsmartbot.adapters.brokers import VenuePaperBroker, BinanceSandboxBroker
+
+# Live public prices + local fills (no keys)
+vp = VenuePaperBroker(10000.0, feed="binance")  # or feed="kraken"
+vp.connect()
+vp.submit_order("BTCUSDT", 1, 0.001)
+
+# Spot Test Network only — set BINANCE_API_KEY / BINANCE_API_SECRET in env
+sb = BinanceSandboxBroker()  # refuses api.binance.com
+```
 
 ### MT4 Broker
 

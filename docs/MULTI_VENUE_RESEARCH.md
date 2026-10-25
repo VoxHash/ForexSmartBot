@@ -20,10 +20,11 @@ Live probes: `forexsmartbot.venues.probes.probe_all_public()`.
 
 - `KrakenPublicBroker` — public Time + Ticker (`get_price`); orders refused.
 - `BinancePublicBroker` — testnet ping + ticker/price; orders refused.
+- `VenuePaperBroker` (3.4.2) — paper fills at live public prices (binance|kraken feed); orders/positions/reconnect; no keys.
+- `BinanceSandboxBroker` (3.4.2) — HMAC signed Spot **Test Network** orders; mainnet refused; keys from env only.
 
-Select **Kraken Public** or **Binance Public** in Settings → Broker Mode for
-connection tests. Authenticated sandbox/mainnet order paths remain a later
-milestone.
+Select **Venue Paper**, **Binance Sandbox**, **Kraken Public**, or **Binance Public**
+in Settings → Broker Mode. Opt-in mainnet live trading remains a later milestone.
 
 ## Opsec
 

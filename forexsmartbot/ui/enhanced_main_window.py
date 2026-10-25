@@ -1172,6 +1172,25 @@ class EnhancedMainWindow(QMainWindow):
             if broker_mode == 'PAPER':
                 self.broker = PaperBroker(10000.0)
                 self.append_log(self.language_manager.tr("paper_broker_initialized", "Paper broker initialized"))
+            elif broker_mode == "Venue Paper":
+                from forexsmartbot.adapters.brokers.venue_paper_broker import (
+                    VenuePaperBroker,
+                )
+
+                self.broker = VenuePaperBroker(10000.0)
+                self.append_log(
+                    f"Venue Paper broker initialized (feed={self.broker.feed_name})"
+                )
+            elif broker_mode == "Binance Sandbox":
+                from forexsmartbot.adapters.brokers.binance_sandbox_broker import (
+                    BinanceSandboxBroker,
+                )
+
+                self.broker = BinanceSandboxBroker()
+                self.append_log(
+                    "Binance Sandbox (Spot Test Network) broker initialized — "
+                    "requires BINANCE_API_KEY / BINANCE_API_SECRET from env"
+                )
             elif broker_mode == 'MT4':
                 # Check if MT4 settings are configured (from settings or env vars)
                 import os
@@ -2141,6 +2160,10 @@ class EnhancedMainWindow(QMainWindow):
             # Color code based on broker type
             if broker_mode == "PAPER":
                 self.trading_status_widget.broker_status.setStyleSheet("color: #3D9CF0; font-weight: bold;")
+            elif broker_mode == "Venue Paper":
+                self.trading_status_widget.broker_status.setStyleSheet("color: #26C281; font-weight: bold;")
+            elif broker_mode == "Binance Sandbox":
+                self.trading_status_widget.broker_status.setStyleSheet("color: #F0B90B; font-weight: bold;")
             elif broker_mode == "MT4":
                 self.trading_status_widget.broker_status.setStyleSheet("color: #E6A23C; font-weight: bold;")
             elif broker_mode == "REST API":

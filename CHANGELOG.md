@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.4.2] - 2026-10-25
+
+### Added
+- **Venue Paper broker**: `VenuePaperBroker` fills local paper orders/positions against live Binance testnet or Kraken public prices (no keys); `reconnect()` re-opens the feed
+- **Binance Sandbox broker**: authenticated Spot Test Network adapter (`BINANCE_API_KEY` / `BINANCE_API_SECRET`); HMAC market orders, balance, positions, reconnect; **mainnet URLs refused**
+- **Settings**: Broker Mode entries **Venue Paper** and **Binance Sandbox**
+- **Tests**: `tests/test_paper_sandbox.py` (HMAC vector, mainnet refusal, mocked sandbox E2E, optional live venue-paper probe)
+- **Docs**: `docs/V3.4.2_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.4.2**
+- Public brokers / paper expose `reconnect()` helpers
+
 ## [3.4.1] - 2026-10-25
 
 ### Added

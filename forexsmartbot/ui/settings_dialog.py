@@ -101,6 +101,8 @@ class SettingsDialog(QDialog):
         self.broker_mode_combo.addItems(
             [
                 "PAPER",
+                "Venue Paper",
+                "Binance Sandbox",
                 "MT4",
                 "REST API",
                 "IB TWS",
@@ -597,6 +599,14 @@ class SettingsDialog(QDialog):
             if broker_mode == 'PAPER':
                 from ..adapters.brokers.paper_broker import PaperBroker
                 broker = PaperBroker(10000.0)
+            elif broker_mode == "Venue Paper":
+                from ..adapters.brokers.venue_paper_broker import VenuePaperBroker
+
+                broker = VenuePaperBroker(10000.0)
+            elif broker_mode == "Binance Sandbox":
+                from ..adapters.brokers.binance_sandbox_broker import BinanceSandboxBroker
+
+                broker = BinanceSandboxBroker()
             elif broker_mode == 'MT4':
                 from ..adapters.brokers.mt4_broker import MT4Broker
                 host = self.mt4_host_edit.text().strip() or "127.0.0.1"
@@ -653,7 +663,12 @@ class SettingsDialog(QDialog):
             balance = broker.get_balance()
             equity = broker.get_equity()
 
-            sample_symbol = "BTCUSDT" if broker_mode == "Binance Public" else "EURUSD"
+            sample_symbol = (
+                "BTCUSDT"
+                if broker_mode
+                in ("Binance Public", "Binance Sandbox", "Venue Paper")
+                else "EURUSD"
+            )
             price_text = "N/A"
             try:
                 sample_price = broker.get_price(sample_symbol)

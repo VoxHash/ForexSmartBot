@@ -11,7 +11,7 @@ from .models import AssetClass, ProbeSymbol, VenueProbeReport
 from .registry import classify_pair, get_venue
 
 DEFAULT_TIMEOUT = 45
-_USER_AGENT = "ForexSmartBot/3.4.1 (+https://github.com/VoxHash/ForexSmartBot)"
+_USER_AGENT = "ForexSmartBot/3.4.2 (+https://github.com/VoxHash/ForexSmartBot)"
 
 
 def _session() -> requests.Session:
