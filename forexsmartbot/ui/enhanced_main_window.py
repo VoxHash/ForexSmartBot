@@ -32,9 +32,11 @@ from .settings_dialog import SettingsDialog
 from .backtest_dialog import BacktestDialog
 from .export_dialog import ExportDialog
 from .theme import ThemeManager
+from .shell import NavRail, SessionBar
 from ..services.notification_service import NotificationService
 from ..services.startup_manager import StartupManager
 from ..services.language_manager import LanguageManager
+from forexsmartbot import __version__
 
 
 class TradingStatusWidget(QWidget):
@@ -735,74 +737,98 @@ class EnhancedMainWindow(QMainWindow):
         self.update_broker_status(broker_mode)
         
     def setup_ui(self):
-        """Setup the user interface."""
+        """Setup the modern shell: nav rail + desk + content stage + session bar."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        
-        # Main layout
-        main_layout = QHBoxLayout(central_widget)
-        
-        # Left panel
+
+        root_layout = QVBoxLayout(central_widget)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        body = QWidget()
+        body_layout = QHBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
+
+        nav_items = [
+            ("trading", self.language_manager.tr("trading", "Trading")),
+            ("analytics", self.language_manager.tr("analytics", "Analytics")),
+            ("charts", self.language_manager.tr("charts", "Charts")),
+            ("strategy_builder", self.language_manager.tr("strategy_builder", "Strategy Builder")),
+            ("marketplace", self.language_manager.tr("marketplace", "Marketplace")),
+            ("monitoring", self.language_manager.tr("monitoring", "Monitoring")),
+            ("cloud", self.language_manager.tr("cloud", "Cloud")),
+        ]
+        self.nav_rail = NavRail(nav_items)
+        self.nav_rail.navigated.connect(self.navigate_to)
+        body_layout.addWidget(self.nav_rail)
+
+        # Desk sidebar — strategy / status / controls (always available)
         left_panel = QWidget()
-        left_panel.setMaximumWidth(400)
+        left_panel.setObjectName("ShellDeskPanel")
+        left_panel.setMaximumWidth(360)
+        left_panel.setMinimumWidth(280)
         left_layout = QVBoxLayout(left_panel)
-        
-        # Trading Status
+        left_layout.setContentsMargins(10, 10, 10, 10)
+        left_layout.setSpacing(8)
+
         self.trading_status_widget = TradingStatusWidget(language_manager=self.language_manager)
         left_layout.addWidget(self.trading_status_widget)
-        
-        # Strategy Configuration
+
         self.strategy_config_widget = StrategyConfigWidget(language_manager=self.language_manager)
         left_layout.addWidget(self.strategy_config_widget)
-        
-        # Performance Metrics
+
         self.performance_metrics_widget = PerformanceMetricsWidget(language_manager=self.language_manager)
         left_layout.addWidget(self.performance_metrics_widget)
-        
-        # Trading Controls
+
         self.trading_controls_widget = TradingControlsWidget(language_manager=self.language_manager)
         left_layout.addWidget(self.trading_controls_widget)
-        
-        # Add stretch to push everything to top
+
         left_layout.addStretch()
-        
-        # Right panel with tabs for all features
-        right_panel = QWidget()
+        body_layout.addWidget(left_panel)
+
+        # Content stage (tabs driven by nav; tab bar hidden for shell rhythm)
+        right_panel = QFrame()
+        right_panel.setObjectName("ShellContentStage")
         right_layout = QVBoxLayout(right_panel)
-        
-        # Create tabbed interface for all features
+        right_layout.setContentsMargins(12, 12, 12, 8)
+        right_layout.setSpacing(8)
+
+        stage_title = QLabel(self.language_manager.tr("trading", "Trading"))
+        stage_title.setStyleSheet("font-size: 20px; font-weight: 700; padding: 4px 2px;")
+        self.stage_title = stage_title
+        right_layout.addWidget(stage_title)
+
         self.features_tabs = QTabWidget()
-        
+        self.features_tabs.tabBar().hide()
+
         # Tab 1: Trading (Positions and Log)
         trading_tab = QWidget()
         trading_tab_layout = QVBoxLayout(trading_tab)
-        
-        # Open Positions
+        trading_tab_layout.setContentsMargins(0, 0, 0, 0)
+
         self.open_positions_widget = OpenPositionsWidget(language_manager=self.language_manager)
         trading_tab_layout.addWidget(self.open_positions_widget)
-        
-        # Closed Positions
+
         self.close_positions_widget = ClosePositionsWidget(language_manager=self.language_manager)
         trading_tab_layout.addWidget(self.close_positions_widget)
-        
-        # Trading Log
+
         log_group = QGroupBox(self.language_manager.tr("trading_log", "Trading Log"))
         log_layout = QVBoxLayout(log_group)
-        
+
         self.log_text = QTextEdit()
         self.log_text.setMaximumHeight(200)
         self.log_text.setReadOnly(True)
         log_layout.addWidget(self.log_text)
-        
+
         trading_tab_layout.addWidget(log_group)
-        
+
         self.features_tabs.addTab(trading_tab, self.language_manager.tr("trading", "Trading"))
-        
+
         # Tab 2: Analytics
         analytics_tab = QWidget()
         analytics_tab_layout = QVBoxLayout(analytics_tab)
-        
-        # Portfolio Analytics Widget
+
         try:
             from ..analytics.portfolio_analytics import PortfolioAnalytics
             from ..ui.analytics_widget import PortfolioAnalyticsWidget
@@ -812,17 +838,16 @@ class EnhancedMainWindow(QMainWindow):
             analytics_label = QLabel(self.language_manager.tr("portfolio_analytics", "Portfolio Analytics"))
             analytics_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             analytics_tab_layout.addWidget(analytics_label)
-        
+
         self.features_tabs.addTab(analytics_tab, self.language_manager.tr("analytics", "Analytics"))
-        
+
         # Tab 3: Charts
         charts_tab = QWidget()
         charts_tab_layout = QVBoxLayout(charts_tab)
-        
+
         try:
             from ..ui.enhanced_charts import EnhancedChartWidget
             self.enhanced_chart_widget = EnhancedChartWidget(parent=charts_tab)
-            # Pass data provider reference if available
             if hasattr(self, 'data_provider') and self.data_provider:
                 self.enhanced_chart_widget.data_provider = self.data_provider
             charts_tab_layout.addWidget(self.enhanced_chart_widget)
@@ -830,37 +855,37 @@ class EnhancedMainWindow(QMainWindow):
             charts_label = QLabel(self.language_manager.tr("enhanced_charts", "Enhanced Charts"))
             charts_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             charts_tab_layout.addWidget(charts_label)
-        
+
         self.features_tabs.addTab(charts_tab, self.language_manager.tr("charts", "Charts"))
-        
+
         # Tab 4: Strategy Builder
         builder_tab = QWidget()
         builder_tab_layout = QVBoxLayout(builder_tab)
-        
-        builder_label = QLabel(self.language_manager.tr("strategy_builder_info", 
+
+        builder_label = QLabel(self.language_manager.tr("strategy_builder_info",
             "Use the menu Tools > Strategy Builder to access the visual strategy builder"))
         builder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         builder_label.setWordWrap(True)
         builder_tab_layout.addWidget(builder_label)
-        
+
         self.features_tabs.addTab(builder_tab, self.language_manager.tr("strategy_builder", "Strategy Builder"))
-        
+
         # Tab 5: Marketplace
         marketplace_tab = QWidget()
         marketplace_tab_layout = QVBoxLayout(marketplace_tab)
-        
+
         marketplace_label = QLabel(self.language_manager.tr("marketplace_info",
             "Use the menu Marketplace to browse and manage strategies"))
         marketplace_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         marketplace_label.setWordWrap(True)
         marketplace_tab_layout.addWidget(marketplace_label)
-        
+
         self.features_tabs.addTab(marketplace_tab, self.language_manager.tr("marketplace", "Marketplace"))
-        
+
         # Tab 6: Monitoring
         monitoring_tab = QWidget()
         monitoring_tab_layout = QVBoxLayout(monitoring_tab)
-        
+
         try:
             from ..monitoring.strategy_monitor import StrategyMonitor
             from ..ui.monitoring_widget import StrategyMonitorWidget
@@ -870,14 +895,13 @@ class EnhancedMainWindow(QMainWindow):
             monitoring_label = QLabel(self.language_manager.tr("monitoring", "Monitoring"))
             monitoring_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             monitoring_tab_layout.addWidget(monitoring_label)
-        
+
         self.features_tabs.addTab(monitoring_tab, self.language_manager.tr("monitoring", "Monitoring"))
-        
+
         # Tab 7: Cloud
         cloud_tab = QWidget()
         cloud_tab_layout = QVBoxLayout(cloud_tab)
-        
-        # Get actual values from environment variables
+
         import os
         from dotenv import load_dotenv
         load_dotenv(override=False)
@@ -885,7 +909,7 @@ class EnhancedMainWindow(QMainWindow):
         monitor_port = os.getenv('REMOTE_MONITOR_PORT', '8080')
         api_host = os.getenv('API_HOST', '127.0.0.1')
         api_port = os.getenv('API_PORT', '5000')
-        
+
         cloud_info = QLabel(self.language_manager.tr("cloud_info",
             f"Cloud Sync: Synchronize settings and data across devices\n"
             f"Remote Monitor: Access web dashboard at http://{monitor_host}:{monitor_port}\n"
@@ -894,23 +918,61 @@ class EnhancedMainWindow(QMainWindow):
         cloud_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         cloud_info.setWordWrap(True)
         cloud_tab_layout.addWidget(cloud_info)
-        
+
         self.features_tabs.addTab(cloud_tab, self.language_manager.tr("cloud", "Cloud"))
-        
+
         right_layout.addWidget(self.features_tabs)
-        
-        # Add panels to main layout
-        main_layout.addWidget(left_panel)
-        main_layout.addWidget(right_panel)
-        
-        # Setup menu bar
+        body_layout.addWidget(right_panel, stretch=1)
+
+        root_layout.addWidget(body, stretch=1)
+
+        self.session_bar = SessionBar()
+        root_layout.addWidget(self.session_bar)
+
         self.setup_menu_bar()
-        
-        # Setup status bar
+
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
-        
+        self._sync_session_bar()
+
+    def navigate_to(self, index: int) -> None:
+        """Switch content stage from the left nav rail."""
+        if not hasattr(self, "features_tabs"):
+            return
+        if 0 <= index < self.features_tabs.count():
+            self.features_tabs.setCurrentIndex(index)
+            if hasattr(self, "nav_rail"):
+                self.nav_rail.set_active(index)
+            title = self.features_tabs.tabText(index)
+            if hasattr(self, "stage_title"):
+                self.stage_title.setText(title)
+            if hasattr(self, "session_bar"):
+                self.session_bar.update_metrics(hint=f"Viewing {title}")
+
+    def _sync_session_bar(self) -> None:
+        """Mirror desk status into the bottom session strip."""
+        if not hasattr(self, "session_bar") or not hasattr(self, "trading_status_widget"):
+            return
+        tw = self.trading_status_widget
+        try:
+            unrealized = 0.0
+            if hasattr(self, "portfolio") and self.portfolio is not None:
+                unrealized = float(getattr(self.portfolio, "unrealized_pnl", 0.0) or 0.0)
+            self.session_bar.update_metrics(
+                broker=tw.broker_status.text(),
+                connection=tw.connection_status.text(),
+                trading=tw.trading_status.text(),
+                balance=tw.balance_label.text(),
+                equity=tw.equity_label.text(),
+                pnl=f"${unrealized:,.2f}",
+                drawdown=tw.drawdown_label.text(),
+                connected=bool(getattr(self, "is_connected", False)),
+                pnl_positive=None if unrealized == 0 else unrealized > 0,
+            )
+        except Exception:
+            pass
+
     def setup_menu_bar(self):
         """Setup menu bar."""
         menubar = self.menuBar()
@@ -1196,7 +1258,7 @@ class EnhancedMainWindow(QMainWindow):
                 if self.broker and self.broker.connect():
                     self.is_connected = True
                     self.trading_status_widget.connection_status.setText("Connected")
-                    self.trading_status_widget.connection_status.setStyleSheet("color: green; font-weight: bold;")
+                    self.trading_status_widget.connection_status.setStyleSheet("color: #26C281; font-weight: bold;")
                     self.trading_controls_widget.update_connection_state(True)
                     self.append_log("Connected to broker successfully")
                     self.status_bar.showMessage("Connected")
@@ -1236,6 +1298,7 @@ class EnhancedMainWindow(QMainWindow):
                             self.update_positions_display()
                     except Exception as e:
                         self.append_log(f"Failed to sync positions from MT4: {e}")
+                    self._sync_session_bar()
                 else:
                     self.append_log("Failed to connect to broker")
                     QMessageBox.warning(self, "Connection Error", "Failed to connect to broker")
@@ -1265,10 +1328,11 @@ class EnhancedMainWindow(QMainWindow):
                     self.broker.disconnect()
                 self.is_connected = False
                 self.trading_status_widget.connection_status.setText("Disconnected")
-                self.trading_status_widget.connection_status.setStyleSheet("color: red; font-weight: bold;")
+                self.trading_status_widget.connection_status.setStyleSheet("color: #E25555; font-weight: bold;")
                 self.trading_controls_widget.update_connection_state(False)
                 self.append_log("Disconnected from broker")
                 self.status_bar.showMessage("Disconnected")
+                self._sync_session_bar()
                 
         except Exception as e:
             self.append_log(f"Connection error: {str(e)}")
@@ -1314,7 +1378,8 @@ class EnhancedMainWindow(QMainWindow):
                 # Start trading
                 self.is_trading = True
                 self.trading_status_widget.trading_status.setText("Running")
-                self.trading_status_widget.trading_status.setStyleSheet("color: green; font-weight: bold;")
+                self.trading_status_widget.trading_status.setStyleSheet("color: #26C281; font-weight: bold;")
+                self._sync_session_bar()
                 self.trading_controls_widget.update_trading_state(True)
                 self.append_log(f"Started trading {clean_strategy_name} on {', '.join(symbols)}")
                 self.status_bar.showMessage("Trading Active")
@@ -1342,10 +1407,11 @@ class EnhancedMainWindow(QMainWindow):
                 self.monitor_timer.stop()
             
             self.trading_status_widget.trading_status.setText("Stopped")
-            self.trading_status_widget.trading_status.setStyleSheet("color: orange; font-weight: bold;")
+            self.trading_status_widget.trading_status.setStyleSheet("color: #E6A23C; font-weight: bold;")
             self.trading_controls_widget.update_trading_state(False)
             self.append_log("Trading stopped - all timers stopped")
             self.status_bar.showMessage("Trading Stopped")
+            self._sync_session_bar()
             
         except Exception as e:
             self.append_log(f"Stop trading error: {str(e)}")
@@ -2060,15 +2126,16 @@ class EnhancedMainWindow(QMainWindow):
             
             # Color code based on broker type
             if broker_mode == "PAPER":
-                self.trading_status_widget.broker_status.setStyleSheet("color: blue; font-weight: bold;")
+                self.trading_status_widget.broker_status.setStyleSheet("color: #3D9CF0; font-weight: bold;")
             elif broker_mode == "MT4":
-                self.trading_status_widget.broker_status.setStyleSheet("color: orange; font-weight: bold;")
+                self.trading_status_widget.broker_status.setStyleSheet("color: #E6A23C; font-weight: bold;")
             elif broker_mode == "REST API":
-                self.trading_status_widget.broker_status.setStyleSheet("color: green; font-weight: bold;")
+                self.trading_status_widget.broker_status.setStyleSheet("color: #26C281; font-weight: bold;")
             elif broker_mode == "IB TWS":
-                self.trading_status_widget.broker_status.setStyleSheet("color: purple; font-weight: bold;")
+                self.trading_status_widget.broker_status.setStyleSheet("color: #3D9CF0; font-weight: bold;")
             else:
-                self.trading_status_widget.broker_status.setStyleSheet("color: gray; font-weight: bold;")
+                self.trading_status_widget.broker_status.setStyleSheet("color: #8B9BB4; font-weight: bold;")
+            self._sync_session_bar()
                 
         except Exception as e:
             self.append_log(f"Error updating broker status: {str(e)}")
@@ -2120,7 +2187,7 @@ class EnhancedMainWindow(QMainWindow):
         QMessageBox.about(
             self,
             self.language_manager.tr("about", "About ForexSmartBot"),
-            "ForexSmartBot v3.3.0\n\n"
+            f"ForexSmartBot v{__version__}\n\n"
             "Advanced Trading Platform with Machine Learning Strategies\n\n"
             "Features:\n"
             "• Real-time trading\n"
@@ -2595,12 +2662,18 @@ class EnhancedMainWindow(QMainWindow):
 
             self.trading_status_widget.drawdown_label.setText(f"{drawdown:.1f}%")
             if drawdown > 0:
-                self.trading_status_widget.drawdown_label.setStyleSheet("color: red;")
+                self.trading_status_widget.drawdown_label.setStyleSheet("color: #E25555;")
             else:
-                self.trading_status_widget.drawdown_label.setStyleSheet("color: green;")
+                self.trading_status_widget.drawdown_label.setStyleSheet("color: #26C281;")
 
             # Update performance metrics
             self.update_performance_metrics()
+            if hasattr(self, "portfolio"):
+                try:
+                    self.portfolio.unrealized_pnl = open_pnl
+                except Exception:
+                    pass
+            self._sync_session_bar()
 
         except Exception as e:
             self.append_log(f"Error updating portfolio: {str(e)}")

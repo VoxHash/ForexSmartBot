@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.4.0] - 2026-10-25
+
+### Added
+- **Modern trading desk shell**: persistent left `NavRail`, content stage, bottom `SessionBar` (equity / P&L / connection) in `forexsmartbot/ui/shell.py`
+- **VoxHash dark QSS**: unique palette tokens (`#0B0F14` / `#3D9CF0` / `#26C281`) applied via `ThemeManager` for dark mode
+- **GUI smoke tests**: `tests/test_gui_shell.py` (offscreen launch, nav, paper path)
+- **Docs**: `docs/V3.4.0_FEATURES.md` (rea methodology + layout inspiration cites; no Spotify affiliation)
+
+### Changed
+- **Version**: Package/app bumped to **3.4.0**
+- **EnhancedMainWindow**: tab bar hidden; stages driven by left nav; session strip mirrors desk status
+
 ## [3.3.9] - 2026-10-25
 
 ### Added

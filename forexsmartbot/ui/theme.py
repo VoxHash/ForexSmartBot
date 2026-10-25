@@ -1,9 +1,11 @@
-"""Theme management with persistence."""
+"""Theme management with persistence and modern VoxHash shell QSS."""
 
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtWidgets import QApplication
 import darkdetect
 from typing import Optional
+
+from .shell import COLORS, build_app_stylesheet
 
 
 class ThemeManager:
@@ -35,28 +37,40 @@ class ThemeManager:
         
         if actual_theme == 'dark':
             self._apply_dark_theme(pal)
+            app.setStyleSheet(build_app_stylesheet(COLORS))
         elif actual_theme == 'dracula':
             self._apply_dracula_theme(pal)
+            app.setStyleSheet("")
         else:
             self._apply_light_theme(pal)
+            app.setStyleSheet("")
             
         app.setPalette(pal)
         return actual_theme
         
     def _apply_dark_theme(self, pal: QPalette) -> None:
-        """Apply dark theme colors."""
-        pal.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))
-        pal.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))
-        pal.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
-        pal.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
-        pal.setColor(QPalette.ColorRole.ToolTipBase, QColor(220, 220, 220))
-        pal.setColor(QPalette.ColorRole.ToolTipText, QColor(220, 220, 220))
-        pal.setColor(QPalette.ColorRole.Text, QColor(220, 220, 220))
-        pal.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
-        pal.setColor(QPalette.ColorRole.ButtonText, QColor(220, 220, 220))
-        pal.setColor(QPalette.ColorRole.BrightText, QColor(255, 0, 0))
-        pal.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
-        pal.setColor(QPalette.ColorRole.HighlightedText, QColor(0, 0, 0))
+        """Apply VoxHash dark shell colors to the palette."""
+        bg = QColor(COLORS.bg)
+        surface = QColor(COLORS.surface)
+        elevated = QColor(COLORS.elevated)
+        text = QColor(COLORS.text)
+        muted = QColor(COLORS.muted)
+        accent = QColor(COLORS.accent)
+
+        pal.setColor(QPalette.ColorRole.Window, bg)
+        pal.setColor(QPalette.ColorRole.WindowText, text)
+        pal.setColor(QPalette.ColorRole.Base, elevated)
+        pal.setColor(QPalette.ColorRole.AlternateBase, surface)
+        pal.setColor(QPalette.ColorRole.ToolTipBase, elevated)
+        pal.setColor(QPalette.ColorRole.ToolTipText, text)
+        pal.setColor(QPalette.ColorRole.Text, text)
+        pal.setColor(QPalette.ColorRole.Button, elevated)
+        pal.setColor(QPalette.ColorRole.ButtonText, text)
+        pal.setColor(QPalette.ColorRole.BrightText, QColor(COLORS.loss))
+        pal.setColor(QPalette.ColorRole.Highlight, accent)
+        pal.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
+        pal.setColor(QPalette.ColorRole.PlaceholderText, muted)
+        pal.setColor(QPalette.ColorRole.Link, accent)
         
     def _apply_light_theme(self, pal: QPalette) -> None:
         """Apply light theme colors."""

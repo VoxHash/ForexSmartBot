@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.3.x** line (latest **3.3.9**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.4.x** line (latest **3.4.0**; prior **3.3.9**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -38,6 +38,9 @@ High-level milestones aligned with the current **3.3.x** line (latest **3.3.9**)
 - [x] **Donchian + Linux aarch64 (3.3.9 / fsb-core 0.7.0)**: Donchian Channel + breakout equity/sweep (`donchian`, `equity_donchian_breakout`, `sweep_donchian_breakout`); `publish-fsb-core.yml` manylinux aarch64 cross wheels.
 - Optional build: `cd native/fsb_core && maturin develop --release` (or `pip install fsb-core`).
 - Further candidates (later): ADX / Supertrend kernels; musllinux wheels.
+
+## Desktop UX (3.4.0)
+- [x] **Modern trading desk shell**: left nav + content stage + bottom session strip; VoxHash dark palette (not a third-party brand clone); offscreen E2E smoke (`tests/test_gui_shell.py`); methodology notes in `docs/V3.4.0_FEATURES.md`.
 
 ## Future — Android / GrapheneOS
 - [x] **API + scaffold (3.3.0)**: Kotlin client talks to remote-monitor `/api/v1/companion/*`; webhook alerts; no Google deps in scaffold; broker keys stay on desktop.

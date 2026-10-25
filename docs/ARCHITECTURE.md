@@ -65,7 +65,8 @@ ForexSmartBot/
 - Language management
 
 ### UI (`forexsmartbot/ui/`)
-- Enhanced main window
+- Enhanced main window (nav rail + desk + content stage + session bar)
+- Shell styles / VoxHash dark QSS (`shell.py`)
 - Settings dialog
 - Backtest dialog
 - Strategy builder dialog
@@ -73,6 +74,10 @@ ForexSmartBot/
 - Theme management
 
 ## Version Structure
+
+### v3.4.0 - Modern Trading Desk Shell
+- `forexsmartbot/ui/shell.py` — NavRail, SessionBar, palette + QSS
+- `docs/V3.4.0_FEATURES.md`
 
 ### v3.3.0 - Cloud Integration
 - `forexsmartbot/cloud/` - Cloud sync, remote monitoring, REST/WebSocket APIs
