@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forexsmartbot"
-version = "3.3.7"
+version = "3.3.8"
 description = "Professional forex trading bot with advanced risk management and strategy plugins"
 authors = [{name = "VoxHash", email = "contact@voxhash.dev"}]
 license = {text = "MIT"}

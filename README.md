@@ -90,7 +90,7 @@ See [docs/GPU_ACCELERATION.md](docs/GPU_ACCELERATION.md) for detailed setup inst
 
 ### With Native Rust Indicators (Optional)
 
-Lower-memory SMA/EMA/ATR/RSI/MACD/Bollinger, parallel batch SMA, walk-forward / RSI / EMA / MACD / Bollinger sweeps, and multi-symbol equity aggregation via PyO3 (`fsb_core`). Install from PyPI or build from source:
+Lower-memory SMA/EMA/ATR/RSI/MACD/Bollinger/Stochastic, parallel batch SMA, walk-forward / RSI / EMA / MACD / Bollinger / Stochastic sweeps, and multi-symbol equity aggregation via PyO3 (`fsb_core`). Install from PyPI or build from source:
 
 ```bash
 pip install fsb-core

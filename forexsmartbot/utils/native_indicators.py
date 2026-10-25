@@ -975,3 +975,133 @@ def sweep_bollinger_mean_reversion(
             rows.append([float(period), float(ns), final_eq, ret, dd])
     return np.asarray(rows, dtype=np.float64).reshape(-1, 5) if rows else np.zeros((0, 5))
 
+
+def stochastic(
+    high: Sequence[float] | np.ndarray | pd.Series,
+    low: Sequence[float] | np.ndarray | pd.Series,
+    close: Sequence[float] | np.ndarray | pd.Series,
+    k_period: int = 14,
+    d_period: int = 3,
+) -> Dict[str, np.ndarray]:
+    """Stochastic Oscillator ``%K`` / ``%D`` (SMA of %K).
+
+    Returns ``{"k", "d"}``. When only a close series is available, pass the same
+    series for ``high``, ``low``, and ``close``.
+    """
+    if k_period < 1 or d_period < 1:
+        raise ValueError("k_period and d_period must be >= 1")
+    h = _as_f64(high)
+    lo = _as_f64(low)
+    c = _as_f64(close)
+    if h.shape != lo.shape or h.shape != c.shape:
+        raise ValueError("high, low, and close lengths must match")
+    if _NATIVE is not None and hasattr(_NATIVE, "stochastic"):
+        k, d = _NATIVE.stochastic(h.tolist(), lo.tolist(), c.tolist(), int(k_period), int(d_period))
+        return {"k": np.asarray(k, dtype=np.float64), "d": np.asarray(d, dtype=np.float64)}
+    n = c.shape[0]
+    k = np.full(n, np.nan, dtype=np.float64)
+    if n >= k_period:
+        for i in range(k_period - 1, n):
+            window_h = h[i + 1 - k_period : i + 1]
+            window_l = lo[i + 1 - k_period : i + 1]
+            hh = float(np.max(window_h))
+            ll = float(np.min(window_l))
+            rng = hh - ll
+            k[i] = 50.0 if rng <= 0.0 else 100.0 * (float(c[i]) - ll) / rng
+    # %D = SMA(%K); require a full finite window (pandas rolling mean semantics).
+    d = np.full(n, np.nan, dtype=np.float64)
+    if n >= d_period:
+        for i in range(d_period - 1, n):
+            window = k[i + 1 - d_period : i + 1]
+            if np.all(np.isfinite(window)):
+                d[i] = float(np.mean(window))
+    return {"k": k, "d": d}
+
+
+def equity_stochastic_crossover(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    k_line: Sequence[float] | np.ndarray | pd.Series,
+    d_line: Sequence[float] | np.ndarray | pd.Series,
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """Stochastic %K/%D crossover equity (same side logic as SMA crossover)."""
+    return equity_sma_crossover(
+        close, k_line, d_line, initial_balance=initial_balance, position_fraction=position_fraction
+    )
+
+
+def _stochastic_crossover_metrics(
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    k_period: int,
+    d_period: int,
+    initial_balance: float,
+    position_fraction: float,
+) -> Tuple[float, float, float]:
+    if close.size == 0 or k_period < 1 or d_period < 1:
+        return float(initial_balance), 0.0, 0.0
+    lines = stochastic(high, low, close, k_period, d_period)
+    equity = equity_stochastic_crossover(
+        close,
+        lines["k"],
+        lines["d"],
+        initial_balance=initial_balance,
+        position_fraction=position_fraction,
+    )
+    final_eq = float(equity[-1]) if equity.size else float(initial_balance)
+    total_return = (
+        (final_eq - initial_balance) / initial_balance if initial_balance != 0.0 else 0.0
+    )
+    return final_eq, total_return, _max_drawdown(equity)
+
+
+def sweep_stochastic_crossover(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    k_periods: Sequence[int],
+    d_periods: Sequence[int],
+    high: Sequence[float] | np.ndarray | pd.Series | None = None,
+    low: Sequence[float] | np.ndarray | pd.Series | None = None,
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """Parallel Stochastic %K/%D crossover parameter grid sweep.
+
+    Returns rows
+    ``[k_period, d_period, final_equity, total_return, max_drawdown]``
+    for every pair with ``k_period >= 1`` and ``d_period >= 1``.
+    When ``high``/``low`` are omitted, ``close`` is used for all three series.
+    """
+    c = _as_f64(close)
+    h = _as_f64(high) if high is not None else c
+    lo = _as_f64(low) if low is not None else c
+    if h.shape != c.shape or lo.shape != c.shape:
+        raise ValueError("high, low, and close lengths must match")
+    k_list = [int(x) for x in k_periods]
+    d_list = [int(x) for x in d_periods]
+    if _NATIVE is not None and hasattr(_NATIVE, "sweep_stochastic_crossover"):
+        rows = _NATIVE.sweep_stochastic_crossover(
+            h.tolist(),
+            lo.tolist(),
+            c.tolist(),
+            k_list,
+            d_list,
+            float(initial_balance),
+            float(position_fraction),
+        )
+        return np.asarray(rows, dtype=np.float64).reshape(-1, 5) if rows else np.zeros((0, 5))
+
+    rows: List[List[float]] = []
+    for kp in k_list:
+        if kp < 1:
+            continue
+        for dp in d_list:
+            if dp < 1:
+                continue
+            final_eq, ret, dd = _stochastic_crossover_metrics(
+                h, lo, c, kp, dp, float(initial_balance), float(position_fraction)
+            )
+            rows.append([float(kp), float(dp), final_eq, ret, dd])
+    return np.asarray(rows, dtype=np.float64).reshape(-1, 5) if rows else np.zeros((0, 5))
+

@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.8] - 2026-10-25
+
+### Added
+- **Stochastic kernels**: `stochastic`, `equity_stochastic_crossover`, `sweep_stochastic_crossover` in `fsb_core` / `native_indicators` (NumPy fallback; `%D` uses finite-window SMA of `%K`)
+- **Docs**: `docs/V3.3.8_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.3.8**; optional `fsb_core` to **0.6.0**
+
 ## [3.3.7] - 2026-10-25
 
 ### Added

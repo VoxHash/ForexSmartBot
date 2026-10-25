@@ -1,10 +1,11 @@
 //! Native CPU-bound helpers for ForexSmartBot.
 //!
-//! Implements rolling indicators (SMA, EMA, ATR, RSI, MACD, Bollinger), batch SMA
-//! via rayon, SMA/EMA-crossover equity, MACD-signal crossover equity, Bollinger
-//! mean-reversion equity, walk-forward sweeps, multi-symbol portfolio aggregation,
-//! and RSI mean-reversion equity/sweeps so indicator/backtest hot paths can run
-//! with lower overhead than pure pandas while the PyQt UI stays responsive.
+//! Implements rolling indicators (SMA, EMA, ATR, RSI, MACD, Bollinger, Stochastic),
+//! batch SMA via rayon, SMA/EMA-crossover equity, MACD-signal crossover equity,
+//! Bollinger mean-reversion equity, Stochastic %K/%D crossover equity, walk-forward
+//! sweeps, multi-symbol portfolio aggregation, and RSI mean-reversion equity/sweeps
+//! so indicator/backtest hot paths can run with lower overhead than pure pandas
+//! while the PyQt UI stays responsive.
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -176,6 +177,67 @@ fn bollinger_slices(
         }
     }
     Ok((middle, upper, lower))
+}
+
+/// Stochastic Oscillator: %K and %D (SMA of %K).
+/// `%K = 100 * (close - lowest_low) / (highest_high - lowest_low)` over `k_period`.
+fn stochastic_slices(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    k_period: usize,
+    d_period: usize,
+) -> Result<(Vec<f64>, Vec<f64>), String> {
+    let n = high.len();
+    if low.len() != n || close.len() != n {
+        return Err("high, low, and close must have the same length".into());
+    }
+    if k_period < 1 || d_period < 1 {
+        return Err("k_period and d_period must be >= 1".into());
+    }
+    let mut k = vec![f64::NAN; n];
+    if n >= k_period {
+        for i in (k_period - 1)..n {
+            let start = i + 1 - k_period;
+            let mut hh = f64::NEG_INFINITY;
+            let mut ll = f64::INFINITY;
+            for j in start..=i {
+                if high[j] > hh {
+                    hh = high[j];
+                }
+                if low[j] < ll {
+                    ll = low[j];
+                }
+            }
+            let range = hh - ll;
+            if range > 0.0 {
+                k[i] = 100.0 * (close[i] - ll) / range;
+            } else {
+                k[i] = 50.0;
+            }
+        }
+    }
+    // %D = SMA(%K); window must contain only finite %K (pandas rolling mean).
+    let mut d = vec![f64::NAN; n];
+    if n >= d_period {
+        for i in (d_period - 1)..n {
+            let start = i + 1 - d_period;
+            let mut sum = 0.0_f64;
+            let mut ok = true;
+            for j in start..=i {
+                let v = k[j];
+                if v.is_nan() {
+                    ok = false;
+                    break;
+                }
+                sum += v;
+            }
+            if ok {
+                d[i] = sum / d_period as f64;
+            }
+        }
+    }
+    Ok((k, d))
 }
 
 /// Classic RSI using simple rolling mean of gains/losses.
@@ -1076,6 +1138,109 @@ fn sweep_bollinger_mean_reversion(
     Ok(out)
 }
 
+fn stochastic_crossover_metrics(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    k_period: usize,
+    d_period: usize,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> (f64, f64, f64) {
+    if close.is_empty() || k_period < 1 || d_period < 1 {
+        return (initial_balance, 0.0, 0.0);
+    }
+    let Ok((k, d)) = stochastic_slices(high, low, close, k_period, d_period) else {
+        return (initial_balance, 0.0, 0.0);
+    };
+    let equity =
+        equity_sma_crossover_slice(close, &k, &d, initial_balance, position_fraction);
+    let final_eq = *equity.last().unwrap_or(&initial_balance);
+    let total_return = if initial_balance != 0.0 {
+        (final_eq - initial_balance) / initial_balance
+    } else {
+        0.0
+    };
+    (final_eq, total_return, max_drawdown(&equity))
+}
+
+/// Returns `(%K, %D)` Stochastic Oscillator lines.
+#[pyfunction]
+fn stochastic(
+    high: Vec<f64>,
+    low: Vec<f64>,
+    close: Vec<f64>,
+    k_period: usize,
+    d_period: usize,
+) -> PyResult<(Vec<f64>, Vec<f64>)> {
+    stochastic_slices(&high, &low, &close, k_period, d_period).map_err(PyValueError::new_err)
+}
+
+/// Compact Stochastic %K/%D crossover equity (same side logic as SMA crossover).
+#[pyfunction]
+fn equity_stochastic_crossover(
+    close: Vec<f64>,
+    k_line: Vec<f64>,
+    d_line: Vec<f64>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<f64>> {
+    equity_sma_crossover(close, k_line, d_line, initial_balance, position_fraction)
+}
+
+/// Parallel Stochastic %K/%D crossover parameter sweep.
+///
+/// Each result row: `[k_period, d_period, final_equity, total_return, max_drawdown]`.
+/// Only pairs with `k_period >= 1` and `d_period >= 1` are evaluated.
+/// When only a close series is available, pass the same vector for high/low/close.
+#[pyfunction]
+fn sweep_stochastic_crossover(
+    high: Vec<f64>,
+    low: Vec<f64>,
+    close: Vec<f64>,
+    k_periods: Vec<usize>,
+    d_periods: Vec<usize>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<Vec<f64>>> {
+    let n = close.len();
+    if high.len() != n || low.len() != n {
+        return Err(PyValueError::new_err(
+            "high, low, and close lengths must match",
+        ));
+    }
+    if close.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut pairs: Vec<(usize, usize)> = Vec::new();
+    for &kp in &k_periods {
+        if kp < 1 {
+            continue;
+        }
+        for &dp in &d_periods {
+            if dp >= 1 {
+                pairs.push((kp, dp));
+            }
+        }
+    }
+    let out: Vec<Vec<f64>> = pairs
+        .par_iter()
+        .map(|&(kp, dp)| {
+            let (final_eq, ret, dd) = stochastic_crossover_metrics(
+                &high,
+                &low,
+                &close,
+                kp,
+                dp,
+                initial_balance,
+                position_fraction,
+            );
+            vec![kp as f64, dp as f64, final_eq, ret, dd]
+        })
+        .collect();
+    Ok(out)
+}
+
 #[pymodule]
 fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -1098,5 +1263,8 @@ fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bollinger, m)?)?;
     m.add_function(wrap_pyfunction!(equity_bollinger_mean_reversion, m)?)?;
     m.add_function(wrap_pyfunction!(sweep_bollinger_mean_reversion, m)?)?;
+    m.add_function(wrap_pyfunction!(stochastic, m)?)?;
+    m.add_function(wrap_pyfunction!(equity_stochastic_crossover, m)?)?;
+    m.add_function(wrap_pyfunction!(sweep_stochastic_crossover, m)?)?;
     Ok(())
 }

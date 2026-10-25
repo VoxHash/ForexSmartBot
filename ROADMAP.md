@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.3.x** line (latest **3.3.7**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.3.x** line (latest **3.3.8**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -34,8 +34,9 @@ High-level milestones aligned with the current **3.3.x** line (latest **3.3.7**)
 - [x] **EMA / MACD kernels (3.3.5 / fsb_core 0.4.0)**: EMA + MACD indicators; EMA-crossover and MACD-signal equity + parallel sweeps; Actions pinned to `ubuntu-24.04`.
 - [x] **Publish fsb_core to PyPI (3.3.6 / fsb-core 0.4.0)**: `pip install fsb-core`; `publish-fsb-core.yml` for multi-Python manylinux wheels on `fsb-core-v*` tags.
 - [x] **Bollinger + multi-platform wheels (3.3.7 / fsb-core 0.5.0)**: Bollinger Bands indicator + mean-reversion equity/sweep; `publish-fsb-core.yml` builds Linux + Windows + macOS (arm64/x86_64) wheels for Python 3.10–3.13.
+- [x] **Stochastic kernels (3.3.8 / fsb-core 0.6.0)**: Stochastic Oscillator `%K`/`%D` + `%K/%D` crossover equity/sweep (`stochastic`, `equity_stochastic_crossover`, `sweep_stochastic_crossover`).
 - Optional build: `cd native/fsb_core && maturin develop --release` (or `pip install fsb-core`).
-- Further candidates (later): additional strategy kernels (e.g. Stochastic / Donchian); Linux aarch64 cross wheels.
+- Further candidates (later): Donchian channel kernels; Linux aarch64 cross wheels.
 
 ## Future — Android / GrapheneOS
 - [x] **API + scaffold (3.3.0)**: Kotlin client talks to remote-monitor `/api/v1/companion/*`; webhook alerts; no Google deps in scaffold; broker keys stay on desktop.

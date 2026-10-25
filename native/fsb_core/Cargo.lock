@@ -41,7 +41,7 @@ checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 
 [[package]]
 name = "fsb_core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "pyo3",
  "rayon",

@@ -331,3 +331,56 @@ def test_bollinger_numpy_fallback(monkeypatch):
     )
     assert rows.shape == (1, 5)
     assert np.isfinite(rows[0, 2])
+
+
+def test_stochastic_matches_manual():
+    close = _close(n=80, seed=201)
+    high = close * 1.01
+    low = close * 0.99
+    k_period, d_period = 14, 3
+    lines = ni.stochastic(high, low, close, k_period, d_period)
+    assert set(lines) == {"k", "d"}
+    assert lines["k"].shape == close.shape
+    # Manual %K at last index
+    i = len(close) - 1
+    hh = float(np.max(high[i + 1 - k_period : i + 1]))
+    ll = float(np.min(low[i + 1 - k_period : i + 1]))
+    expected_k = 100.0 * (float(close[i]) - ll) / (hh - ll)
+    assert lines["k"][i] == pytest.approx(expected_k, rel=1e-9, abs=1e-12)
+    # %D is SMA of last d_period finite %K values
+    expected_d = float(np.mean(lines["k"][i + 1 - d_period : i + 1]))
+    assert lines["d"][i] == pytest.approx(expected_d, rel=1e-9, abs=1e-12)
+    first_d = k_period + d_period - 2
+    assert np.all(np.isnan(lines["d"][:first_d]))
+    assert np.isfinite(lines["d"][first_d])
+
+
+def test_equity_stochastic_and_sweep():
+    close = _close(n=120, seed=202)
+    lines = ni.stochastic(close, close, close, 14, 3)
+    equity = ni.equity_stochastic_crossover(
+        close, lines["k"], lines["d"], initial_balance=10_000.0
+    )
+    assert equity.shape == close.shape
+    assert np.all(np.isfinite(equity))
+    assert equity[0] == pytest.approx(10_000.0)
+    rows = ni.sweep_stochastic_crossover(
+        close, k_periods=[10, 14], d_periods=[3, 5], initial_balance=10_000.0
+    )
+    assert rows.ndim == 2 and rows.shape[1] == 5
+    assert rows.shape[0] == 4
+    assert np.all(rows[:, 0] >= 10)
+    assert np.all(np.isfinite(rows[:, 2:]))
+
+
+def test_stochastic_numpy_fallback(monkeypatch):
+    monkeypatch.setattr(ni, "_NATIVE", None)
+    monkeypatch.setattr(ni, "_NATIVE_ERR", "forced-off-for-test")
+    close = _close(n=90, seed=203)
+    lines = ni.stochastic(close, close, close, 14, 3)
+    assert lines["k"].shape == close.shape
+    rows = ni.sweep_stochastic_crossover(
+        close, [14], [3], initial_balance=5_000.0
+    )
+    assert rows.shape == (1, 5)
+    assert np.isfinite(rows[0, 2])
