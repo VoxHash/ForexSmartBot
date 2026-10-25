@@ -1,9 +1,10 @@
 name: Publish fsb-core to PyPI
 
-# Builds manylinux + Windows + macOS wheels + sdist for the optional native
-# extension and publishes on tags matching fsb-core-v*.*.* (or manual dispatch).
-# Requires a PyPI Trusted Publisher for project fsb-core → workflow publish-fsb-core.yml
-# (or PYPI_API_TOKEN secret). First release (0.4.0) was uploaded via token+twine.
+# Builds manylinux (x86_64 + aarch64 cross) + Windows + macOS wheels + sdist for
+# the optional native extension and publishes on tags matching fsb-core-v*.*.*
+# (or manual dispatch). Requires a PyPI Trusted Publisher for project fsb-core →
+# workflow publish-fsb-core.yml (or PYPI_API_TOKEN secret). First release (0.4.0)
+# was uploaded via token+twine.
 
 on:
   push:
@@ -37,6 +38,31 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: fsb-core-wheel-linux-cp${{ matrix.python }}
+          path: native/fsb_core/dist/*.whl
+
+  linux-aarch64:
+    name: wheel-linux-aarch64 (${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build aarch64 wheel (cross)
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: native/fsb_core
+          target: aarch64
+          command: build
+          args: --release --out dist -i python${{ matrix.python }}
+          manylinux: auto
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fsb-core-wheel-linux-aarch64-cp${{ matrix.python }}
           path: native/fsb_core/dist/*.whl
 
   windows:
@@ -128,7 +154,7 @@ jobs:
           path: native/fsb_core/dist/*.tar.gz
 
   publish:
-    needs: [linux, windows, macos, sdist]
+    needs: [linux, linux-aarch64, windows, macos, sdist]
     runs-on: ubuntu-24.04
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/fsb-core-v')
     permissions:

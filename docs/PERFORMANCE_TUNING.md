@@ -32,7 +32,7 @@ Canonical performance and memory guide for ForexSmartBot.
 
 ## Optional Rust native core (`fsb_core`)
 
-Indicator and compact backtest loops are CPU-bound and run often during strategy evaluation. The optional Rust extension under `native/fsb_core` (PyO3 + rayon) offloads SMA/EMA/ATR/RSI/MACD/Bollinger/Stochastic, batch SMA, SMA/EMA-crossover and MACD-signal equity curves, **Bollinger mean-reversion equity/sweeps**, **Stochastic %K/%D crossover equity/sweeps**, **walk-forward / grid parameter sweeps**, **RSI mean-reversion equity/sweeps**, and **multi-symbol equity aggregation** so the PyQt process shares the machine more cleanly with other apps. PyPI wheels cover Linux, Windows, and macOS.
+Indicator and compact backtest loops are CPU-bound and run often during strategy evaluation. The optional Rust extension under `native/fsb_core` (PyO3 + rayon) offloads SMA/EMA/ATR/RSI/MACD/Bollinger/Stochastic/Donchian, batch SMA, SMA/EMA-crossover and MACD-signal equity curves, **Bollinger mean-reversion equity/sweeps**, **Stochastic %K/%D crossover equity/sweeps**, **Donchian breakout equity/sweeps**, **walk-forward / grid parameter sweeps**, **RSI mean-reversion equity/sweeps**, and **multi-symbol equity aggregation** so the PyQt process shares the machine more cleanly with other apps. PyPI wheels cover Linux (x86_64 + aarch64), Windows, and macOS.
 
 ```bash
 pip install fsb-core
@@ -40,7 +40,7 @@ pip install fsb-core
 python -c "from forexsmartbot.utils.native_indicators import native_status; print(native_status())"
 ```
 
-Call sites: `forexsmartbot.utils.native_indicators` (`sma`, `ema`, `atr`, `rsi`, `macd`, `bollinger`, `stochastic`, `batch_sma`, `equity_sma_crossover`, `equity_ema_crossover`, `equity_macd_crossover`, `equity_bollinger_mean_reversion`, `equity_stochastic_crossover`, `sweep_sma_crossover`, `sweep_ema_crossover`, `sweep_macd`, `sweep_bollinger_mean_reversion`, `sweep_stochastic_crossover`, `sweep_rsi_mean_reversion`, `walk_forward_sma_sweep`, `multi_symbol_equity_aggregate`), wired into `SMACrossover` / core `Strategy` indicators and `CalculationEngine.fast_rolling_mean`. If the module is missing, NumPy (and Numba where already used) remains the path — no mocks.
+Call sites: `forexsmartbot.utils.native_indicators` (`sma`, `ema`, `atr`, `rsi`, `macd`, `bollinger`, `stochastic`, `donchian`, `batch_sma`, `equity_sma_crossover`, `equity_ema_crossover`, `equity_macd_crossover`, `equity_bollinger_mean_reversion`, `equity_stochastic_crossover`, `equity_donchian_breakout`, `sweep_sma_crossover`, `sweep_ema_crossover`, `sweep_macd`, `sweep_bollinger_mean_reversion`, `sweep_stochastic_crossover`, `sweep_donchian_breakout`, `sweep_rsi_mean_reversion`, `walk_forward_sma_sweep`, `multi_symbol_equity_aggregate`), wired into `SMACrossover` / core `Strategy` indicators and `CalculationEngine.fast_rolling_mean`. If the module is missing, NumPy (and Numba where already used) remains the path — no mocks.
 
 ## Data Provider Optimization
 

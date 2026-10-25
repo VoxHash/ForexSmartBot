@@ -1105,3 +1105,160 @@ def sweep_stochastic_crossover(
             rows.append([float(kp), float(dp), final_eq, ret, dd])
     return np.asarray(rows, dtype=np.float64).reshape(-1, 5) if rows else np.zeros((0, 5))
 
+
+def donchian(
+    high: Sequence[float] | np.ndarray | pd.Series,
+    low: Sequence[float] | np.ndarray | pd.Series,
+    period: int = 20,
+) -> Dict[str, np.ndarray]:
+    """Donchian Channel: highest high / lowest low / midpoint over ``period``.
+
+    Returns ``{"middle", "upper", "lower"}``. When only a close series is available,
+    pass the same series for ``high`` and ``low``.
+    """
+    if period < 1:
+        raise ValueError("period must be >= 1")
+    h = _as_f64(high)
+    lo = _as_f64(low)
+    if h.shape != lo.shape:
+        raise ValueError("high and low lengths must match")
+    if _NATIVE is not None and hasattr(_NATIVE, "donchian"):
+        mid, up, low_band = _NATIVE.donchian(h.tolist(), lo.tolist(), int(period))
+        return {
+            "middle": np.asarray(mid, dtype=np.float64),
+            "upper": np.asarray(up, dtype=np.float64),
+            "lower": np.asarray(low_band, dtype=np.float64),
+        }
+    n = h.shape[0]
+    upper = np.full(n, np.nan, dtype=np.float64)
+    lower = np.full(n, np.nan, dtype=np.float64)
+    middle = np.full(n, np.nan, dtype=np.float64)
+    if n >= period:
+        for i in range(period - 1, n):
+            window_h = h[i + 1 - period : i + 1]
+            window_l = lo[i + 1 - period : i + 1]
+            hh = float(np.max(window_h))
+            ll = float(np.min(window_l))
+            upper[i] = hh
+            lower[i] = ll
+            middle[i] = 0.5 * (hh + ll)
+    return {"middle": middle, "upper": upper, "lower": lower}
+
+
+def equity_donchian_breakout(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    upper: Sequence[float] | np.ndarray | pd.Series,
+    lower: Sequence[float] | np.ndarray | pd.Series,
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """Donchian breakout equity: long above prior upper, short below prior lower."""
+    c = _as_f64(close)
+    u = _as_f64(upper)
+    lo = _as_f64(lower)
+    if c.shape != u.shape or c.shape != lo.shape:
+        raise ValueError("close, upper, and lower lengths must match")
+    if _NATIVE is not None and hasattr(_NATIVE, "equity_donchian_breakout"):
+        return np.asarray(
+            _NATIVE.equity_donchian_breakout(
+                c.tolist(),
+                u.tolist(),
+                lo.tolist(),
+                float(initial_balance),
+                float(position_fraction),
+            ),
+            dtype=np.float64,
+        )
+    n = c.shape[0]
+    balance = float(initial_balance)
+    side = 0
+    size = 0.0
+    entry = 0.0
+    equity = np.empty(n, dtype=np.float64)
+    for i in range(n):
+        px = float(c[i])
+        if i >= 1:
+            up_i, lo_i = float(u[i - 1]), float(lo[i - 1])
+            if not (np.isnan(up_i) or np.isnan(lo_i)):
+                if px > up_i and side <= 0:
+                    if side < 0:
+                        balance += -size * (px - entry)
+                    size = (balance * position_fraction) / px
+                    entry = px
+                    side = 1
+                elif px < lo_i and side >= 0:
+                    if side > 0:
+                        balance += size * (px - entry)
+                    size = (balance * position_fraction) / px
+                    entry = px
+                    side = -1
+        mtm = side * size * (px - entry) if side else 0.0
+        equity[i] = balance + mtm
+    return equity
+
+
+def _donchian_breakout_metrics(
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    period: int,
+    initial_balance: float,
+    position_fraction: float,
+) -> Tuple[float, float, float]:
+    if close.size == 0 or period < 1:
+        return float(initial_balance), 0.0, 0.0
+    bands = donchian(high, low, period)
+    equity = equity_donchian_breakout(
+        close,
+        bands["upper"],
+        bands["lower"],
+        initial_balance=initial_balance,
+        position_fraction=position_fraction,
+    )
+    final_eq = float(equity[-1]) if equity.size else float(initial_balance)
+    total_return = (
+        (final_eq - initial_balance) / initial_balance if initial_balance != 0.0 else 0.0
+    )
+    return final_eq, total_return, _max_drawdown(equity)
+
+
+def sweep_donchian_breakout(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    periods: Sequence[int],
+    high: Sequence[float] | np.ndarray | pd.Series | None = None,
+    low: Sequence[float] | np.ndarray | pd.Series | None = None,
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """Parallel Donchian breakout parameter sweep.
+
+    Returns rows ``[period, final_equity, total_return, max_drawdown]`` for every
+    ``period >= 1``. When ``high``/``low`` are omitted, ``close`` is used for both.
+    """
+    c = _as_f64(close)
+    h = _as_f64(high) if high is not None else c
+    lo = _as_f64(low) if low is not None else c
+    if h.shape != c.shape or lo.shape != c.shape:
+        raise ValueError("high, low, and close lengths must match")
+    per_list = [int(x) for x in periods]
+    if _NATIVE is not None and hasattr(_NATIVE, "sweep_donchian_breakout"):
+        rows = _NATIVE.sweep_donchian_breakout(
+            h.tolist(),
+            lo.tolist(),
+            c.tolist(),
+            per_list,
+            float(initial_balance),
+            float(position_fraction),
+        )
+        return np.asarray(rows, dtype=np.float64).reshape(-1, 4) if rows else np.zeros((0, 4))
+
+    rows: List[List[float]] = []
+    for period in per_list:
+        if period < 1:
+            continue
+        final_eq, ret, dd = _donchian_breakout_metrics(
+            h, lo, c, period, float(initial_balance), float(position_fraction)
+        )
+        rows.append([float(period), final_eq, ret, dd])
+    return np.asarray(rows, dtype=np.float64).reshape(-1, 4) if rows else np.zeros((0, 4))
+

@@ -384,3 +384,50 @@ def test_stochastic_numpy_fallback(monkeypatch):
     )
     assert rows.shape == (1, 5)
     assert np.isfinite(rows[0, 2])
+
+
+def test_donchian_matches_manual():
+    close = _close(n=80, seed=301)
+    high = close * 1.01
+    low = close * 0.99
+    period = 20
+    bands = ni.donchian(high, low, period)
+    assert set(bands) == {"middle", "upper", "lower"}
+    assert bands["upper"].shape == close.shape
+    i = len(close) - 1
+    expected_u = float(np.max(high[i + 1 - period : i + 1]))
+    expected_l = float(np.min(low[i + 1 - period : i + 1]))
+    assert bands["upper"][i] == pytest.approx(expected_u, rel=1e-9, abs=1e-12)
+    assert bands["lower"][i] == pytest.approx(expected_l, rel=1e-9, abs=1e-12)
+    assert bands["middle"][i] == pytest.approx(0.5 * (expected_u + expected_l), rel=1e-9, abs=1e-12)
+    assert np.all(np.isnan(bands["upper"][: period - 1]))
+    assert np.isfinite(bands["upper"][period - 1])
+
+
+def test_equity_donchian_and_sweep():
+    close = _close(n=120, seed=302)
+    bands = ni.donchian(close, close, 20)
+    equity = ni.equity_donchian_breakout(
+        close, bands["upper"], bands["lower"], initial_balance=10_000.0
+    )
+    assert equity.shape == close.shape
+    assert np.all(np.isfinite(equity))
+    assert equity[0] == pytest.approx(10_000.0)
+    rows = ni.sweep_donchian_breakout(
+        close, periods=[10, 20, 55], initial_balance=10_000.0
+    )
+    assert rows.ndim == 2 and rows.shape[1] == 4
+    assert rows.shape[0] == 3
+    assert np.all(rows[:, 0] >= 10)
+    assert np.all(np.isfinite(rows[:, 1:]))
+
+
+def test_donchian_numpy_fallback(monkeypatch):
+    monkeypatch.setattr(ni, "_NATIVE", None)
+    monkeypatch.setattr(ni, "_NATIVE_ERR", "forced-off-for-test")
+    close = _close(n=90, seed=303)
+    bands = ni.donchian(close, close, 15)
+    assert bands["middle"].shape == close.shape
+    rows = ni.sweep_donchian_breakout(close, [15], initial_balance=5_000.0)
+    assert rows.shape == (1, 4)
+    assert np.isfinite(rows[0, 1])

@@ -1,11 +1,11 @@
 //! Native CPU-bound helpers for ForexSmartBot.
 //!
-//! Implements rolling indicators (SMA, EMA, ATR, RSI, MACD, Bollinger, Stochastic),
-//! batch SMA via rayon, SMA/EMA-crossover equity, MACD-signal crossover equity,
-//! Bollinger mean-reversion equity, Stochastic %K/%D crossover equity, walk-forward
-//! sweeps, multi-symbol portfolio aggregation, and RSI mean-reversion equity/sweeps
-//! so indicator/backtest hot paths can run with lower overhead than pure pandas
-//! while the PyQt UI stays responsive.
+//! Implements rolling indicators (SMA, EMA, ATR, RSI, MACD, Bollinger, Stochastic,
+//! Donchian), batch SMA via rayon, SMA/EMA-crossover equity, MACD-signal crossover
+//! equity, Bollinger mean-reversion equity, Stochastic %K/%D crossover equity,
+//! Donchian breakout equity, walk-forward sweeps, multi-symbol portfolio aggregation,
+//! and RSI mean-reversion equity/sweeps so indicator/backtest hot paths can run with
+//! lower overhead than pure pandas while the PyQt UI stays responsive.
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -238,6 +238,43 @@ fn stochastic_slices(
         }
     }
     Ok((k, d))
+}
+
+/// Donchian Channel: upper = highest high, lower = lowest low, middle = midpoint.
+fn donchian_slices(
+    high: &[f64],
+    low: &[f64],
+    period: usize,
+) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>), String> {
+    let n = high.len();
+    if low.len() != n {
+        return Err("high and low must have the same length".into());
+    }
+    if period < 1 {
+        return Err("period must be >= 1".into());
+    }
+    let mut upper = vec![f64::NAN; n];
+    let mut lower = vec![f64::NAN; n];
+    let mut middle = vec![f64::NAN; n];
+    if n >= period {
+        for i in (period - 1)..n {
+            let start = i + 1 - period;
+            let mut hh = f64::NEG_INFINITY;
+            let mut ll = f64::INFINITY;
+            for j in start..=i {
+                if high[j] > hh {
+                    hh = high[j];
+                }
+                if low[j] < ll {
+                    ll = low[j];
+                }
+            }
+            upper[i] = hh;
+            lower[i] = ll;
+            middle[i] = (hh + ll) * 0.5;
+        }
+    }
+    Ok((middle, upper, lower))
 }
 
 /// Classic RSI using simple rolling mean of gains/losses.
@@ -1241,6 +1278,163 @@ fn sweep_stochastic_crossover(
     Ok(out)
 }
 
+/// Donchian breakout equity: long when close breaks above the prior upper band,
+/// short when close breaks below the prior lower band (Turtle-style).
+fn equity_donchian_breakout_slice(
+    close: &[f64],
+    upper: &[f64],
+    lower: &[f64],
+    initial_balance: f64,
+    position_fraction: f64,
+) -> Vec<f64> {
+    let n = close.len();
+    let mut balance = initial_balance;
+    let mut side: i8 = 0;
+    let mut size = 0.0_f64;
+    let mut entry = 0.0_f64;
+    let mut equity = Vec::with_capacity(n);
+
+    for i in 0..n {
+        let px = close[i];
+        if i >= 1 {
+            let up = upper[i - 1];
+            let lo = lower[i - 1];
+            if !up.is_nan() && !lo.is_nan() {
+                if px > up && side <= 0 {
+                    if side < 0 {
+                        balance += -size * (px - entry);
+                    }
+                    size = (balance * position_fraction) / px;
+                    entry = px;
+                    side = 1;
+                } else if px < lo && side >= 0 {
+                    if side > 0 {
+                        balance += size * (px - entry);
+                    }
+                    size = (balance * position_fraction) / px;
+                    entry = px;
+                    side = -1;
+                }
+            }
+        }
+        let mtm = if side != 0 {
+            side as f64 * size * (px - entry)
+        } else {
+            0.0
+        };
+        equity.push(balance + mtm);
+    }
+    equity
+}
+
+fn donchian_breakout_metrics(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    period: usize,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> (f64, f64, f64) {
+    if close.is_empty() || period < 1 {
+        return (initial_balance, 0.0, 0.0);
+    }
+    let Ok((_, upper, lower)) = donchian_slices(high, low, period) else {
+        return (initial_balance, 0.0, 0.0);
+    };
+    let equity = equity_donchian_breakout_slice(
+        close,
+        &upper,
+        &lower,
+        initial_balance,
+        position_fraction,
+    );
+    let final_eq = *equity.last().unwrap_or(&initial_balance);
+    let total_return = if initial_balance != 0.0 {
+        (final_eq - initial_balance) / initial_balance
+    } else {
+        0.0
+    };
+    (final_eq, total_return, max_drawdown(&equity))
+}
+
+/// Returns `(middle, upper, lower)` Donchian Channel bands.
+#[pyfunction]
+fn donchian(
+    high: Vec<f64>,
+    low: Vec<f64>,
+    period: usize,
+) -> PyResult<(Vec<f64>, Vec<f64>, Vec<f64>)> {
+    donchian_slices(&high, &low, period).map_err(PyValueError::new_err)
+}
+
+/// Compact Donchian breakout equity (prior-bar channel thresholds).
+#[pyfunction]
+fn equity_donchian_breakout(
+    close: Vec<f64>,
+    upper: Vec<f64>,
+    lower: Vec<f64>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<f64>> {
+    let n = close.len();
+    if upper.len() != n || lower.len() != n {
+        return Err(PyValueError::new_err(
+            "close, upper, and lower lengths must match",
+        ));
+    }
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(equity_donchian_breakout_slice(
+        &close,
+        &upper,
+        &lower,
+        initial_balance,
+        position_fraction,
+    ))
+}
+
+/// Parallel Donchian breakout parameter sweep.
+///
+/// Each result row: `[period, final_equity, total_return, max_drawdown]`.
+/// Only periods with `period >= 1` are evaluated.
+/// When only a close series is available, pass the same vector for high/low/close.
+#[pyfunction]
+fn sweep_donchian_breakout(
+    high: Vec<f64>,
+    low: Vec<f64>,
+    close: Vec<f64>,
+    periods: Vec<usize>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<Vec<f64>>> {
+    let n = close.len();
+    if high.len() != n || low.len() != n {
+        return Err(PyValueError::new_err(
+            "high, low, and close lengths must match",
+        ));
+    }
+    if close.is_empty() {
+        return Ok(Vec::new());
+    }
+    let valid: Vec<usize> = periods.into_iter().filter(|&p| p >= 1).collect();
+    let out: Vec<Vec<f64>> = valid
+        .par_iter()
+        .map(|&period| {
+            let (final_eq, ret, dd) = donchian_breakout_metrics(
+                &high,
+                &low,
+                &close,
+                period,
+                initial_balance,
+                position_fraction,
+            );
+            vec![period as f64, final_eq, ret, dd]
+        })
+        .collect();
+    Ok(out)
+}
+
 #[pymodule]
 fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -1266,5 +1460,8 @@ fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(stochastic, m)?)?;
     m.add_function(wrap_pyfunction!(equity_stochastic_crossover, m)?)?;
     m.add_function(wrap_pyfunction!(sweep_stochastic_crossover, m)?)?;
+    m.add_function(wrap_pyfunction!(donchian, m)?)?;
+    m.add_function(wrap_pyfunction!(equity_donchian_breakout, m)?)?;
+    m.add_function(wrap_pyfunction!(sweep_donchian_breakout, m)?)?;
     Ok(())
 }

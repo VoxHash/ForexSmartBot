@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.9] - 2026-10-25
+
+### Added
+- **Donchian kernels**: `donchian`, `equity_donchian_breakout`, `sweep_donchian_breakout` in `fsb_core` / `native_indicators` (NumPy fallback; Turtle-style prior-bar breakout)
+- **Linux aarch64 wheels**: `publish-fsb-core.yml` cross-builds manylinux aarch64 wheels (Python 3.10–3.13) alongside x86_64
+- **Docs**: `docs/V3.3.9_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.3.9**; optional `fsb_core` to **0.7.0**
+
 ## [3.3.8] - 2026-10-25
 
 ### Added
