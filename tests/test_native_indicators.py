@@ -213,3 +213,67 @@ def test_rsi_mean_reversion_numpy_fallback(monkeypatch):
     assert np.isfinite(rows[0, 3])
     equity = ni.equity_rsi_mean_reversion(close, ni.rsi(close, 14), 30.0, 70.0, 5_000.0)
     assert equity.shape == close.shape
+
+
+def test_ema_finite_after_warmup():
+    close = _close(n=50, seed=91)
+    out = ni.ema(close, 10)
+    assert out.shape == close.shape
+    assert np.all(np.isnan(out[:9]))
+    assert np.all(np.isfinite(out[9:]))
+
+
+def test_macd_components():
+    close = _close(n=80, seed=92)
+    comps = ni.macd(close, 8, 17, 5)
+    assert set(comps) == {"macd", "signal", "histogram"}
+    assert comps["macd"].shape == close.shape
+    finite = np.isfinite(comps["signal"])
+    assert finite.any()
+    assert np.all(np.isfinite(comps["histogram"][finite]))
+
+
+def test_equity_ema_and_sweep():
+    close = _close(n=100, seed=93)
+    equity = ni.equity_ema_crossover(
+        close, ni.ema(close, 5), ni.ema(close, 15), initial_balance=10_000.0
+    )
+    assert equity.shape == close.shape
+    assert np.all(np.isfinite(equity))
+    rows = ni.sweep_ema_crossover(close, [5, 8], [15, 20], initial_balance=10_000.0)
+    assert rows.ndim == 2 and rows.shape[1] == 5
+    assert rows.shape[0] == 4
+    assert np.all(rows[:, 0] < rows[:, 1])
+
+
+def test_equity_macd_and_sweep():
+    close = _close(n=120, seed=94)
+    comps = ni.macd(close, 8, 17, 5)
+    equity = ni.equity_macd_crossover(
+        close, comps["macd"], comps["signal"], initial_balance=10_000.0
+    )
+    assert equity.shape == close.shape
+    assert np.all(np.isfinite(equity))
+    rows = ni.sweep_macd(
+        close,
+        fast_periods=[8, 10],
+        slow_periods=[17, 21],
+        signal_periods=[5, 7],
+        initial_balance=10_000.0,
+    )
+    assert rows.ndim == 2 and rows.shape[1] == 6
+    assert rows.shape[0] == 8
+    assert np.all(rows[:, 0] < rows[:, 1])
+
+
+def test_ema_macd_numpy_fallback(monkeypatch):
+    monkeypatch.setattr(ni, "_NATIVE", None)
+    monkeypatch.setattr(ni, "_NATIVE_ERR", "forced-off-for-test")
+    close = _close(n=90, seed=95)
+    assert ni.ema(close, 10).shape == close.shape
+    comps = ni.macd(close, 8, 17, 5)
+    assert comps["macd"].shape == close.shape
+    rows = ni.sweep_ema_crossover(close, [5], [15], initial_balance=5_000.0)
+    assert rows.shape == (1, 5)
+    macd_rows = ni.sweep_macd(close, [8], [17], [5], initial_balance=5_000.0)
+    assert macd_rows.shape == (1, 6)

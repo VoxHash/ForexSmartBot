@@ -564,3 +564,261 @@ def sweep_rsi_mean_reversion(
                 rows.append([float(period), float(os), float(ob), final_eq, ret, dd])
     return np.asarray(rows, dtype=np.float64).reshape(-1, 6) if rows else np.zeros((0, 6))
 
+def ema(values: Sequence[float] | np.ndarray | pd.Series, period: int) -> np.ndarray:
+    """Exponential moving average; leading values are NaN until ``period`` fills."""
+    if period < 1:
+        raise ValueError("period must be >= 1")
+    arr = _as_f64(values)
+    if _NATIVE is not None and hasattr(_NATIVE, "ema"):
+        return np.asarray(_NATIVE.ema(arr.tolist(), int(period)), dtype=np.float64)
+    n = arr.shape[0]
+    out = np.full(n, np.nan, dtype=np.float64)
+    if n < period:
+        return out
+    seed = float(np.mean(arr[:period]))
+    out[period - 1] = seed
+    alpha = 2.0 / (period + 1.0)
+    prev = seed
+    for i in range(period, n):
+        prev = alpha * float(arr[i]) + (1.0 - alpha) * prev
+        out[i] = prev
+    return out
+
+
+def macd(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    fast_period: int = 12,
+    slow_period: int = 26,
+    signal_period: int = 9,
+) -> Dict[str, np.ndarray]:
+    """MACD line, signal line, and histogram.
+
+    Returns ``{"macd", "signal", "histogram"}``.
+    """
+    if fast_period < 1 or slow_period < 1 or signal_period < 1 or fast_period >= slow_period:
+        raise ValueError("require fast >= 1, slow >= 1, signal >= 1, and fast < slow")
+    arr = _as_f64(close)
+    if _NATIVE is not None and hasattr(_NATIVE, "macd"):
+        m, s, h = _NATIVE.macd(
+            arr.tolist(), int(fast_period), int(slow_period), int(signal_period)
+        )
+        return {
+            "macd": np.asarray(m, dtype=np.float64),
+            "signal": np.asarray(s, dtype=np.float64),
+            "histogram": np.asarray(h, dtype=np.float64),
+        }
+    ema_f = ema(arr, fast_period)
+    ema_s = ema(arr, slow_period)
+    macd_line = ema_f - ema_s
+    # Signal EMA over finite MACD values (match Rust seed behavior).
+    n = arr.shape[0]
+    signal = np.full(n, np.nan, dtype=np.float64)
+    hist = np.full(n, np.nan, dtype=np.float64)
+    seed_sum = 0.0
+    seed_count = 0
+    prev = np.nan
+    alpha = 2.0 / (signal_period + 1.0)
+    for i in range(n):
+        m = float(macd_line[i])
+        if np.isnan(m):
+            continue
+        if seed_count < signal_period:
+            seed_sum += m
+            seed_count += 1
+            if seed_count == signal_period:
+                prev = seed_sum / signal_period
+                signal[i] = prev
+                hist[i] = m - prev
+            continue
+        prev = alpha * m + (1.0 - alpha) * prev
+        signal[i] = prev
+        hist[i] = m - prev
+    return {"macd": macd_line, "signal": signal, "histogram": hist}
+
+
+def equity_ema_crossover(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    ema_fast: Sequence[float] | np.ndarray | pd.Series,
+    ema_slow: Sequence[float] | np.ndarray | pd.Series,
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """EMA crossover equity (same side logic as SMA crossover)."""
+    if _NATIVE is not None and hasattr(_NATIVE, "equity_ema_crossover"):
+        c = _as_f64(close)
+        f = _as_f64(ema_fast)
+        s = _as_f64(ema_slow)
+        if c.shape != f.shape or c.shape != s.shape:
+            raise ValueError("close, ema_fast, and ema_slow lengths must match")
+        return np.asarray(
+            _NATIVE.equity_ema_crossover(
+                c.tolist(),
+                f.tolist(),
+                s.tolist(),
+                float(initial_balance),
+                float(position_fraction),
+            ),
+            dtype=np.float64,
+        )
+    return equity_sma_crossover(
+        close, ema_fast, ema_slow, initial_balance=initial_balance, position_fraction=position_fraction
+    )
+
+
+def _ema_crossover_metrics(
+    close: np.ndarray,
+    fast: int,
+    slow: int,
+    initial_balance: float,
+    position_fraction: float,
+) -> Tuple[float, float, float]:
+    if close.size == 0 or fast < 1 or slow < 1 or fast >= slow:
+        return float(initial_balance), 0.0, 0.0
+    equity = equity_ema_crossover(
+        close,
+        ema(close, fast),
+        ema(close, slow),
+        initial_balance=initial_balance,
+        position_fraction=position_fraction,
+    )
+    final_eq = float(equity[-1]) if equity.size else float(initial_balance)
+    total_return = (
+        (final_eq - initial_balance) / initial_balance if initial_balance != 0.0 else 0.0
+    )
+    return final_eq, total_return, _max_drawdown(equity)
+
+
+def sweep_ema_crossover(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    fast_periods: Sequence[int],
+    slow_periods: Sequence[int],
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """Parallel EMA-crossover parameter grid sweep.
+
+    Returns rows ``[fast, slow, final_equity, total_return, max_drawdown]``
+    for every pair with ``fast < slow``.
+    """
+    arr = _as_f64(close)
+    fasts = [int(x) for x in fast_periods]
+    slows = [int(x) for x in slow_periods]
+    if _NATIVE is not None and hasattr(_NATIVE, "sweep_ema_crossover"):
+        rows = _NATIVE.sweep_ema_crossover(
+            arr.tolist(),
+            fasts,
+            slows,
+            float(initial_balance),
+            float(position_fraction),
+        )
+        return np.asarray(rows, dtype=np.float64).reshape(-1, 5) if rows else np.zeros((0, 5))
+
+    rows: List[List[float]] = []
+    for fast in fasts:
+        for slow in slows:
+            if fast < 1 or slow < 1 or fast >= slow:
+                continue
+            final_eq, ret, dd = _ema_crossover_metrics(
+                arr, fast, slow, float(initial_balance), float(position_fraction)
+            )
+            rows.append([float(fast), float(slow), final_eq, ret, dd])
+    return np.asarray(rows, dtype=np.float64).reshape(-1, 5) if rows else np.zeros((0, 5))
+
+
+def equity_macd_crossover(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    macd_line: Sequence[float] | np.ndarray | pd.Series,
+    signal_line: Sequence[float] | np.ndarray | pd.Series,
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """MACD vs signal crossover equity."""
+    c = _as_f64(close)
+    m = _as_f64(macd_line)
+    s = _as_f64(signal_line)
+    if c.shape != m.shape or c.shape != s.shape:
+        raise ValueError("close, macd_line, and signal_line lengths must match")
+    if _NATIVE is not None and hasattr(_NATIVE, "equity_macd_crossover"):
+        return np.asarray(
+            _NATIVE.equity_macd_crossover(
+                c.tolist(),
+                m.tolist(),
+                s.tolist(),
+                float(initial_balance),
+                float(position_fraction),
+            ),
+            dtype=np.float64,
+        )
+    return equity_sma_crossover(
+        c, m, s, initial_balance=initial_balance, position_fraction=position_fraction
+    )
+
+
+def _macd_crossover_metrics(
+    close: np.ndarray,
+    fast: int,
+    slow: int,
+    signal: int,
+    initial_balance: float,
+    position_fraction: float,
+) -> Tuple[float, float, float]:
+    if close.size == 0 or fast < 1 or slow < 1 or signal < 1 or fast >= slow:
+        return float(initial_balance), 0.0, 0.0
+    comps = macd(close, fast, slow, signal)
+    equity = equity_macd_crossover(
+        close,
+        comps["macd"],
+        comps["signal"],
+        initial_balance=initial_balance,
+        position_fraction=position_fraction,
+    )
+    final_eq = float(equity[-1]) if equity.size else float(initial_balance)
+    total_return = (
+        (final_eq - initial_balance) / initial_balance if initial_balance != 0.0 else 0.0
+    )
+    return final_eq, total_return, _max_drawdown(equity)
+
+
+def sweep_macd(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    fast_periods: Sequence[int],
+    slow_periods: Sequence[int],
+    signal_periods: Sequence[int],
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """Parallel MACD parameter grid sweep.
+
+    Returns rows
+    ``[fast, slow, signal, final_equity, total_return, max_drawdown]``
+    for every triple with ``fast < slow`` and all periods >= 1.
+    """
+    arr = _as_f64(close)
+    fasts = [int(x) for x in fast_periods]
+    slows = [int(x) for x in slow_periods]
+    signals = [int(x) for x in signal_periods]
+    if _NATIVE is not None and hasattr(_NATIVE, "sweep_macd"):
+        rows = _NATIVE.sweep_macd(
+            arr.tolist(),
+            fasts,
+            slows,
+            signals,
+            float(initial_balance),
+            float(position_fraction),
+        )
+        return np.asarray(rows, dtype=np.float64).reshape(-1, 6) if rows else np.zeros((0, 6))
+
+    rows: List[List[float]] = []
+    for fast in fasts:
+        for slow in slows:
+            if fast < 1 or slow < 1 or fast >= slow:
+                continue
+            for sig in signals:
+                if sig < 1:
+                    continue
+                final_eq, ret, dd = _macd_crossover_metrics(
+                    arr, fast, slow, sig, float(initial_balance), float(position_fraction)
+                )
+                rows.append([float(fast), float(slow), float(sig), final_eq, ret, dd])
+    return np.asarray(rows, dtype=np.float64).reshape(-1, 6) if rows else np.zeros((0, 6))
+

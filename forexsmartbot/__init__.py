@@ -1,2 +1,2 @@
 # ForexSmartBot Package
-__version__ = "3.3.4"
+__version__ = "3.3.5"

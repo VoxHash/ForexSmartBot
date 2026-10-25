@@ -1,8 +1,8 @@
 //! Native CPU-bound helpers for ForexSmartBot.
 //!
-//! Implements rolling indicators (SMA, ATR, RSI), batch SMA via rayon,
-//! SMA-crossover equity, walk-forward parameter sweeps, multi-symbol
-//! portfolio aggregation, and RSI mean-reversion equity/sweeps so
+//! Implements rolling indicators (SMA, EMA, ATR, RSI, MACD), batch SMA via rayon,
+//! SMA/EMA-crossover equity, MACD-signal crossover equity, walk-forward sweeps,
+//! multi-symbol portfolio aggregation, and RSI mean-reversion equity/sweeps so
 //! indicator/backtest hot paths can run with lower overhead than pure
 //! pandas while the PyQt UI stays responsive.
 
@@ -30,6 +30,78 @@ fn sma_slice(values: &[f64], window: usize) -> Vec<f64> {
     out
 }
 
+
+/// Exponential moving average. Leading `period-1` samples are NaN; seed uses SMA.
+fn ema_slice(values: &[f64], period: usize) -> Vec<f64> {
+    let n = values.len();
+    let mut out = vec![f64::NAN; n];
+    if period == 0 || n < period {
+        return out;
+    }
+    let mut sum = 0.0_f64;
+    for i in 0..period {
+        sum += values[i];
+    }
+    let mut prev = sum / period as f64;
+    out[period - 1] = prev;
+    let alpha = 2.0 / (period as f64 + 1.0);
+    for i in period..n {
+        prev = alpha * values[i] + (1.0 - alpha) * prev;
+        out[i] = prev;
+    }
+    out
+}
+
+/// MACD line, signal line, and histogram. Fast/slow/signal periods must be >= 1
+/// and `fast < slow`.
+fn macd_slices(
+    close: &[f64],
+    fast: usize,
+    slow: usize,
+    signal: usize,
+) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>), String> {
+    if fast == 0 || slow == 0 || signal == 0 || fast >= slow {
+        return Err("require fast >= 1, slow >= 1, signal >= 1, and fast < slow".into());
+    }
+    let ema_f = ema_slice(close, fast);
+    let ema_s = ema_slice(close, slow);
+    let n = close.len();
+    let mut macd = vec![f64::NAN; n];
+    for i in 0..n {
+        let f = ema_f[i];
+        let s = ema_s[i];
+        if !f.is_nan() && !s.is_nan() {
+            macd[i] = f - s;
+        }
+    }
+    // Signal EMA over the MACD series, skipping leading NaNs.
+    let mut signal_line = vec![f64::NAN; n];
+    let mut hist = vec![f64::NAN; n];
+    let mut seed_sum = 0.0_f64;
+    let mut seed_count = 0_usize;
+    let mut prev_signal = f64::NAN;
+    let alpha = 2.0 / (signal as f64 + 1.0);
+    for i in 0..n {
+        let m = macd[i];
+        if m.is_nan() {
+            continue;
+        }
+        if seed_count < signal {
+            seed_sum += m;
+            seed_count += 1;
+            if seed_count == signal {
+                prev_signal = seed_sum / signal as f64;
+                signal_line[i] = prev_signal;
+                hist[i] = m - prev_signal;
+            }
+            continue;
+        }
+        prev_signal = alpha * m + (1.0 - alpha) * prev_signal;
+        signal_line[i] = prev_signal;
+        hist[i] = m - prev_signal;
+    }
+    Ok((macd, signal_line, hist))
+}
 /// Average True Range over OHLC series (Wilder-style simple mean of TR).
 fn atr_slice(high: &[f64], low: &[f64], close: &[f64], period: usize) -> Result<Vec<f64>, String> {
     let n = high.len();
@@ -591,6 +663,202 @@ fn sweep_rsi_mean_reversion(
     Ok(out)
 }
 
+
+/// EMA-crossover metrics (final_equity, total_return, max_drawdown).
+fn ema_crossover_metrics(
+    close: &[f64],
+    fast: usize,
+    slow: usize,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> (f64, f64, f64) {
+    if close.is_empty() || fast == 0 || slow == 0 || fast >= slow {
+        return (initial_balance, 0.0, 0.0);
+    }
+    let ema_f = ema_slice(close, fast);
+    let ema_s = ema_slice(close, slow);
+    let equity = equity_sma_crossover_slice(close, &ema_f, &ema_s, initial_balance, position_fraction);
+    let final_eq = *equity.last().unwrap_or(&initial_balance);
+    let total_return = if initial_balance != 0.0 {
+        (final_eq - initial_balance) / initial_balance
+    } else {
+        0.0
+    };
+    (final_eq, total_return, max_drawdown(&equity))
+}
+
+/// MACD vs signal crossover equity (same side logic as SMA crossover).
+fn equity_macd_crossover_slice(
+    close: &[f64],
+    macd: &[f64],
+    signal: &[f64],
+    initial_balance: f64,
+    position_fraction: f64,
+) -> Vec<f64> {
+    equity_sma_crossover_slice(close, macd, signal, initial_balance, position_fraction)
+}
+
+fn macd_crossover_metrics(
+    close: &[f64],
+    fast: usize,
+    slow: usize,
+    signal: usize,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> (f64, f64, f64) {
+    if close.is_empty() {
+        return (initial_balance, 0.0, 0.0);
+    }
+    let Ok((macd, sig, _)) = macd_slices(close, fast, slow, signal) else {
+        return (initial_balance, 0.0, 0.0);
+    };
+    let equity = equity_macd_crossover_slice(
+        close,
+        &macd,
+        &sig,
+        initial_balance,
+        position_fraction,
+    );
+    let final_eq = *equity.last().unwrap_or(&initial_balance);
+    let total_return = if initial_balance != 0.0 {
+        (final_eq - initial_balance) / initial_balance
+    } else {
+        0.0
+    };
+    (final_eq, total_return, max_drawdown(&equity))
+}
+
+#[pyfunction]
+fn ema(values: Vec<f64>, period: usize) -> PyResult<Vec<f64>> {
+    if period == 0 {
+        return Err(PyValueError::new_err("period must be >= 1"));
+    }
+    Ok(ema_slice(&values, period))
+}
+
+/// Returns `(macd_line, signal_line, histogram)`.
+#[pyfunction]
+fn macd(
+    close: Vec<f64>,
+    fast_period: usize,
+    slow_period: usize,
+    signal_period: usize,
+) -> PyResult<(Vec<f64>, Vec<f64>, Vec<f64>)> {
+    macd_slices(&close, fast_period, slow_period, signal_period).map_err(PyValueError::new_err)
+}
+
+/// Compact EMA crossover equity over aligned close/EMA series.
+#[pyfunction]
+fn equity_ema_crossover(
+    close: Vec<f64>,
+    ema_fast: Vec<f64>,
+    ema_slow: Vec<f64>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<f64>> {
+    equity_sma_crossover(close, ema_fast, ema_slow, initial_balance, position_fraction)
+}
+
+/// Parallel EMA-crossover parameter grid sweep.
+///
+/// Each result row: `[fast, slow, final_equity, total_return, max_drawdown]`.
+#[pyfunction]
+fn sweep_ema_crossover(
+    close: Vec<f64>,
+    fast_periods: Vec<usize>,
+    slow_periods: Vec<usize>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<Vec<f64>>> {
+    if close.is_empty() {
+        return Ok(Vec::new());
+    }
+    let pairs = build_param_pairs(&fast_periods, &slow_periods);
+    let out: Vec<Vec<f64>> = pairs
+        .par_iter()
+        .map(|&(fast, slow)| {
+            let (final_eq, ret, dd) =
+                ema_crossover_metrics(&close, fast, slow, initial_balance, position_fraction);
+            vec![fast as f64, slow as f64, final_eq, ret, dd]
+        })
+        .collect();
+    Ok(out)
+}
+
+/// Compact MACD vs signal crossover equity.
+#[pyfunction]
+fn equity_macd_crossover(
+    close: Vec<f64>,
+    macd_line: Vec<f64>,
+    signal_line: Vec<f64>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<f64>> {
+    let n = close.len();
+    if macd_line.len() != n || signal_line.len() != n {
+        return Err(PyValueError::new_err(
+            "close, macd_line, and signal_line lengths must match",
+        ));
+    }
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(equity_macd_crossover_slice(
+        &close,
+        &macd_line,
+        &signal_line,
+        initial_balance,
+        position_fraction,
+    ))
+}
+
+/// Parallel MACD parameter sweep.
+///
+/// Each result row:
+/// `[fast, slow, signal, final_equity, total_return, max_drawdown]`.
+/// Only triples with `fast < slow` and all periods >= 1 are evaluated.
+#[pyfunction]
+fn sweep_macd(
+    close: Vec<f64>,
+    fast_periods: Vec<usize>,
+    slow_periods: Vec<usize>,
+    signal_periods: Vec<usize>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<Vec<f64>>> {
+    if close.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut triples: Vec<(usize, usize, usize)> = Vec::new();
+    for &fast in &fast_periods {
+        for &slow in &slow_periods {
+            if fast == 0 || slow == 0 || fast >= slow {
+                continue;
+            }
+            for &sig in &signal_periods {
+                if sig >= 1 {
+                    triples.push((fast, slow, sig));
+                }
+            }
+        }
+    }
+    let out: Vec<Vec<f64>> = triples
+        .par_iter()
+        .map(|&(fast, slow, sig)| {
+            let (final_eq, ret, dd) = macd_crossover_metrics(
+                &close,
+                fast,
+                slow,
+                sig,
+                initial_balance,
+                position_fraction,
+            );
+            vec![fast as f64, slow as f64, sig as f64, final_eq, ret, dd]
+        })
+        .collect();
+    Ok(out)
+}
+
 #[pymodule]
 fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -604,5 +872,11 @@ fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(multi_symbol_equity_aggregate, m)?)?;
     m.add_function(wrap_pyfunction!(equity_rsi_mean_reversion, m)?)?;
     m.add_function(wrap_pyfunction!(sweep_rsi_mean_reversion, m)?)?;
+    m.add_function(wrap_pyfunction!(ema, m)?)?;
+    m.add_function(wrap_pyfunction!(macd, m)?)?;
+    m.add_function(wrap_pyfunction!(equity_ema_crossover, m)?)?;
+    m.add_function(wrap_pyfunction!(sweep_ema_crossover, m)?)?;
+    m.add_function(wrap_pyfunction!(equity_macd_crossover, m)?)?;
+    m.add_function(wrap_pyfunction!(sweep_macd, m)?)?;
     Ok(())
 }

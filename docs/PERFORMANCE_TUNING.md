@@ -32,7 +32,7 @@ Canonical performance and memory guide for ForexSmartBot.
 
 ## Optional Rust native core (`fsb_core`)
 
-Indicator and compact backtest loops are CPU-bound and run often during strategy evaluation. The optional Rust extension under `native/fsb_core` (PyO3 + rayon) offloads SMA/ATR/RSI, batch SMA, SMA-crossover equity curves, **walk-forward / grid parameter sweeps**, **RSI mean-reversion equity/sweeps**, and **multi-symbol equity aggregation** so the PyQt process shares the machine more cleanly with other apps.
+Indicator and compact backtest loops are CPU-bound and run often during strategy evaluation. The optional Rust extension under `native/fsb_core` (PyO3 + rayon) offloads SMA/EMA/ATR/RSI/MACD, batch SMA, SMA/EMA-crossover and MACD-signal equity curves, **walk-forward / grid parameter sweeps**, **RSI mean-reversion equity/sweeps**, and **multi-symbol equity aggregation** so the PyQt process shares the machine more cleanly with other apps.
 
 ```bash
 pip install maturin
@@ -40,7 +40,7 @@ cd native/fsb_core && maturin develop --release
 python -c "from forexsmartbot.utils.native_indicators import native_status; print(native_status())"
 ```
 
-Call sites: `forexsmartbot.utils.native_indicators` (`sma`, `atr`, `rsi`, `batch_sma`, `equity_sma_crossover`, `sweep_sma_crossover`, `walk_forward_sma_sweep`, `multi_symbol_equity_aggregate`), wired into `SMACrossover` / core `Strategy` indicators and `CalculationEngine.fast_rolling_mean`. If the module is missing, NumPy (and Numba where already used) remains the path — no mocks.
+Call sites: `forexsmartbot.utils.native_indicators` (`sma`, `ema`, `atr`, `rsi`, `macd`, `batch_sma`, `equity_sma_crossover`, `equity_ema_crossover`, `equity_macd_crossover`, `sweep_sma_crossover`, `sweep_ema_crossover`, `sweep_macd`, `sweep_rsi_mean_reversion`, `walk_forward_sma_sweep`, `multi_symbol_equity_aggregate`), wired into `SMACrossover` / core `Strategy` indicators and `CalculationEngine.fast_rolling_mean`. If the module is missing, NumPy (and Numba where already used) remains the path — no mocks.
 
 ## Data Provider Optimization
 

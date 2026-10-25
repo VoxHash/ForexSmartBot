@@ -90,7 +90,7 @@ See [docs/GPU_ACCELERATION.md](docs/GPU_ACCELERATION.md) for detailed setup inst
 
 ### With Native Rust Indicators (Optional)
 
-Lower-memory SMA/ATR/RSI, parallel batch SMA, walk-forward / RSI mean-reversion sweeps, and multi-symbol equity aggregation via PyO3 (`native/fsb_core`). Requires [Rust](https://rustup.rs/) and [maturin](https://www.maturin.rs/).
+Lower-memory SMA/EMA/ATR/RSI/MACD, parallel batch SMA, walk-forward / RSI / EMA / MACD sweeps, and multi-symbol equity aggregation via PyO3 (`native/fsb_core`). Requires [Rust](https://rustup.rs/) and [maturin](https://www.maturin.rs/).
 
 ```bash
 # once: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh

@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.5] - 2026-10-25
+
+### Added
+- **EMA / MACD kernels**: `ema`, `macd`, `equity_ema_crossover`, `sweep_ema_crossover`, `equity_macd_crossover`, `sweep_macd` in `fsb_core` / `native_indicators` (NumPy fallback)
+- **Docs**: `docs/V3.3.5_FEATURES.md`
+- **CI**: pin GitHub Actions Ubuntu jobs to `ubuntu-24.04` (avoid `ubuntu-latest` migration queue stalls)
+
+### Changed
+- **Version**: Package/app bumped to **3.3.5**; optional `fsb_core` to **0.4.0**
+
 ## [3.3.4] - 2026-10-25
 
 ### Added
