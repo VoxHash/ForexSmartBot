@@ -23,15 +23,14 @@ password = os.getenv('PASSWORD')
 
 **✅ Use .env files:**
 ```python
-# .env file (not in git)
-API_KEY=sk-1234567890abcdef
-PASSWORD=mypassword
-
+# .env file (not in git) — copy from .env.example; never commit real values
 # In code
 from dotenv import load_dotenv
 load_dotenv()
 api_key = os.getenv('API_KEY')
 ```
+
+**Exchange / broker keys (CEX, DEX, REST):** use least-privilege API keys (no withdraw), testnet/sandbox before live, never log secrets, never store keys in the mobile companion. See root [SECURITY.md](../SECURITY.md) and the multi-venue milestone in [ROADMAP.md](../ROADMAP.md).
 
 ### 2. File Permissions
 

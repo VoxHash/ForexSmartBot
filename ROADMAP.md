@@ -45,9 +45,25 @@ High-level milestones aligned with the current **3.3.x** line (latest **3.3.9**)
 - [x] **CameraX + encrypted cache + pin defaults (3.3.2)**: live QR scan; EncryptedSharedPreferences; host/Gradle production pin env; multi-host dashboard.
 - Remaining: published F-Droid / Play store listing (metadata draft ready; submit outside this repo).
 
+## Future — Multi-venue CEX / DEX (commodities + FX / crypto pairs)
+Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Not started** — research and adapters only when scheduled; no live CEX/DEX trading in the current 3.3.x line.
+
+Phased delivery (realistic order):
+- [ ] **Research**: Map symbol/asset coverage (FX pairs, commodities, spot crypto) and venue capabilities for **centralized exchanges/brokers** (explicitly including **Binance**, **Kraken**, and similar REST/WebSocket APIs) and **decentralized exchanges/platforms** (on-chain or aggregator APIs where suitable). Prefer testnet/sandbox docs first.
+- [ ] **Adapters**: Implement thin `IBroker` (+ optional market-data) adapters behind existing settings/env config; keep PyQt UI on the host; no keys in the mobile companion.
+- [ ] **Paper / sandbox**: Wire paper or venue testnet paths end-to-end (orders, positions, reconnect) before any mainnet funds.
+- [ ] **Live (opt-in)**: Production credentials only via local `.env` / UI secrets store; least-privilege API keys (trade-only where possible; no withdraw); kill-switch and risk limits reuse existing risk engine.
+
+Opsec (required for this milestone):
+- [ ] API keys and secrets never committed; `.env` gitignored; `.env.example` placeholders only
+- [ ] Secrets not logged (requests, health, companion, or crash dumps)
+- [ ] Document required env vars without real values; recommend IP allowlists / key rotation per venue
+
+Related existing work to reuse: `docs/EXTENDING_BROKERS.md`, paper broker, REST broker scaffold, remote-monitor auth hardening.
+
 ## Future
-- Social / copy trading and marketplace growth
-- Multi-asset support (equities, crypto) where data providers allow
-- Enterprise and compliance tooling (audit logs, role-based access)
+- [ ] Social / copy trading and marketplace growth
+- [ ] Multi-asset support (equities, crypto) where data providers allow — partly overlaps multi-venue CEX/DEX above
+- [ ] Enterprise and compliance tooling (audit logs, role-based access)
 
 For historical goals, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and version feature docs under `docs/V3.*_FEATURES.md`.
