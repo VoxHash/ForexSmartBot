@@ -1,8 +1,9 @@
 //! Native CPU-bound helpers for ForexSmartBot.
 //!
-//! Implements rolling indicators (SMA, ATR, RSI) and batch SMA via rayon so
-//! indicator/backtest hot paths can run with lower memory overhead than pure
-//! pandas/numba while the PyQt UI stays responsive alongside other apps.
+//! Implements rolling indicators (SMA, ATR, RSI), batch SMA via rayon,
+//! SMA-crossover equity, walk-forward parameter sweeps, and multi-symbol
+//! portfolio aggregation so indicator/backtest hot paths can run with lower
+//! overhead than pure pandas while the PyQt UI stays responsive.
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -83,6 +84,110 @@ fn rsi_slice(values: &[f64], period: usize) -> Vec<f64> {
     out
 }
 
+/// Compact SMA crossover equity over aligned series. Returns mark-to-market curve.
+fn equity_sma_crossover_slice(
+    close: &[f64],
+    sma_fast: &[f64],
+    sma_slow: &[f64],
+    initial_balance: f64,
+    position_fraction: f64,
+) -> Vec<f64> {
+    let n = close.len();
+    let mut balance = initial_balance;
+    let mut side: i8 = 0;
+    let mut size = 0.0_f64;
+    let mut entry = 0.0_f64;
+    let mut equity = Vec::with_capacity(n);
+
+    for i in 0..n {
+        let px = close[i];
+        if i >= 1 {
+            let f = sma_fast[i];
+            let s = sma_slow[i];
+            let pf = sma_fast[i - 1];
+            let ps = sma_slow[i - 1];
+            if !f.is_nan() && !s.is_nan() && !pf.is_nan() && !ps.is_nan() {
+                let cross_up = f > s && pf <= ps;
+                let cross_dn = f < s && pf >= ps;
+                if cross_up && side <= 0 {
+                    if side < 0 {
+                        balance += -size * (px - entry);
+                    }
+                    size = (balance * position_fraction) / px;
+                    entry = px;
+                    side = 1;
+                } else if cross_dn && side >= 0 {
+                    if side > 0 {
+                        balance += size * (px - entry);
+                    }
+                    size = (balance * position_fraction) / px;
+                    entry = px;
+                    side = -1;
+                }
+            }
+        }
+        let mtm = if side != 0 {
+            side as f64 * size * (px - entry)
+        } else {
+            0.0
+        };
+        equity.push(balance + mtm);
+    }
+    equity
+}
+
+fn max_drawdown(equity: &[f64]) -> f64 {
+    let mut peak = f64::NEG_INFINITY;
+    let mut max_dd = 0.0_f64;
+    for &e in equity {
+        if e > peak {
+            peak = e;
+        }
+        if peak > 0.0 {
+            let dd = (peak - e) / peak;
+            if dd > max_dd {
+                max_dd = dd;
+            }
+        }
+    }
+    max_dd
+}
+
+/// Run one SMA-crossover backtest; return (final_equity, total_return, max_drawdown).
+fn sma_crossover_metrics(
+    close: &[f64],
+    fast: usize,
+    slow: usize,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> (f64, f64, f64) {
+    if close.is_empty() || fast == 0 || slow == 0 || fast >= slow {
+        return (initial_balance, 0.0, 0.0);
+    }
+    let sma_f = sma_slice(close, fast);
+    let sma_s = sma_slice(close, slow);
+    let equity = equity_sma_crossover_slice(close, &sma_f, &sma_s, initial_balance, position_fraction);
+    let final_eq = *equity.last().unwrap_or(&initial_balance);
+    let total_return = if initial_balance != 0.0 {
+        (final_eq - initial_balance) / initial_balance
+    } else {
+        0.0
+    };
+    (final_eq, total_return, max_drawdown(&equity))
+}
+
+fn build_param_pairs(fast_periods: &[usize], slow_periods: &[usize]) -> Vec<(usize, usize)> {
+    let mut pairs = Vec::new();
+    for &f in fast_periods {
+        for &s in slow_periods {
+            if f >= 1 && s >= 1 && f < s {
+                pairs.push((f, s));
+            }
+        }
+    }
+    pairs
+}
+
 #[pyfunction]
 fn sma(values: Vec<f64>, window: usize) -> PyResult<Vec<f64>> {
     if window == 0 {
@@ -137,47 +242,188 @@ fn equity_sma_crossover(
     if n == 0 {
         return Ok(Vec::new());
     }
-    let mut balance = initial_balance;
-    let mut side: i8 = 0;
-    let mut size = 0.0_f64;
-    let mut entry = 0.0_f64;
-    let mut equity = Vec::with_capacity(n);
+    Ok(equity_sma_crossover_slice(
+        &close,
+        &sma_fast,
+        &sma_slow,
+        initial_balance,
+        position_fraction,
+    ))
+}
 
-    for i in 0..n {
-        let px = close[i];
-        if i >= 1 {
-            let f = sma_fast[i];
-            let s = sma_slow[i];
-            let pf = sma_fast[i - 1];
-            let ps = sma_slow[i - 1];
-            if !f.is_nan() && !s.is_nan() && !pf.is_nan() && !ps.is_nan() {
-                let cross_up = f > s && pf <= ps;
-                let cross_dn = f < s && pf >= ps;
-                if cross_up && side <= 0 {
-                    if side < 0 {
-                        balance += -size * (px - entry);
-                    }
-                    size = (balance * position_fraction) / px;
-                    entry = px;
-                    side = 1;
-                } else if cross_dn && side >= 0 {
-                    if side > 0 {
-                        balance += size * (px - entry);
-                    }
-                    size = (balance * position_fraction) / px;
-                    entry = px;
-                    side = -1;
+/// Parallel SMA-crossover parameter grid sweep.
+///
+/// Each result row: `[fast, slow, final_equity, total_return, max_drawdown]`.
+/// Only pairs with `fast < slow` are evaluated (rayon over the grid).
+#[pyfunction]
+fn sweep_sma_crossover(
+    close: Vec<f64>,
+    fast_periods: Vec<usize>,
+    slow_periods: Vec<usize>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<Vec<f64>>> {
+    if close.is_empty() {
+        return Ok(Vec::new());
+    }
+    let pairs = build_param_pairs(&fast_periods, &slow_periods);
+    let out: Vec<Vec<f64>> = pairs
+        .par_iter()
+        .map(|&(fast, slow)| {
+            let (final_eq, ret, dd) =
+                sma_crossover_metrics(&close, fast, slow, initial_balance, position_fraction);
+            vec![fast as f64, slow as f64, final_eq, ret, dd]
+        })
+        .collect();
+    Ok(out)
+}
+
+/// Walk-forward SMA parameter sweep.
+///
+/// `windows` rows are `[train_start, train_end, test_start, test_end]` (end exclusive).
+/// For each window: grid-search on the train slice (max total_return), evaluate best
+/// pair on the test slice. Result row:
+/// `[best_fast, best_slow, train_return, test_return, test_final_equity, test_max_dd]`.
+#[pyfunction]
+fn walk_forward_sma_sweep(
+    close: Vec<f64>,
+    fast_periods: Vec<usize>,
+    slow_periods: Vec<usize>,
+    windows: Vec<Vec<usize>>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<Vec<f64>>> {
+    let n = close.len();
+    let pairs = build_param_pairs(&fast_periods, &slow_periods);
+    if pairs.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut parsed: Vec<(usize, usize, usize, usize)> = Vec::with_capacity(windows.len());
+    for (i, w) in windows.iter().enumerate() {
+        if w.len() != 4 {
+            return Err(PyValueError::new_err(format!(
+                "window {i} must have 4 indices [train_start, train_end, test_start, test_end]"
+            )));
+        }
+        let (ts, te, xs, xe) = (w[0], w[1], w[2], w[3]);
+        if te > n || xe > n || ts >= te || xs >= xe {
+            return Err(PyValueError::new_err(format!(
+                "window {i} has invalid bounds for series length {n}"
+            )));
+        }
+        parsed.push((ts, te, xs, xe));
+    }
+
+    let out: Vec<Vec<f64>> = parsed
+        .par_iter()
+        .map(|&(ts, te, xs, xe)| {
+            let train = &close[ts..te];
+            let mut best_fast = pairs[0].0;
+            let mut best_slow = pairs[0].1;
+            let mut best_train_ret = f64::NEG_INFINITY;
+            for &(fast, slow) in &pairs {
+                let (_eq, ret, _dd) =
+                    sma_crossover_metrics(train, fast, slow, initial_balance, position_fraction);
+                if ret > best_train_ret {
+                    best_train_ret = ret;
+                    best_fast = fast;
+                    best_slow = slow;
                 }
             }
-        }
-        let mtm = if side != 0 {
-            side as f64 * size * (px - entry)
-        } else {
-            0.0
-        };
-        equity.push(balance + mtm);
+            let test = &close[xs..xe];
+            let (test_eq, test_ret, test_dd) = sma_crossover_metrics(
+                test,
+                best_fast,
+                best_slow,
+                initial_balance,
+                position_fraction,
+            );
+            vec![
+                best_fast as f64,
+                best_slow as f64,
+                best_train_ret,
+                test_ret,
+                test_eq,
+                test_dd,
+            ]
+        })
+        .collect();
+    Ok(out)
+}
+
+/// Multi-symbol SMA-crossover workers + portfolio aggregation.
+///
+/// Runs each symbol equity in parallel, then builds a weighted portfolio equity
+/// (equal weight when `weights` is empty). Lengths must match across symbols.
+///
+/// Returns `(per_symbol_equity, portfolio_equity)`.
+#[pyfunction]
+fn multi_symbol_equity_aggregate(
+    closes: Vec<Vec<f64>>,
+    fast_period: usize,
+    slow_period: usize,
+    initial_balance: f64,
+    position_fraction: f64,
+    weights: Vec<f64>,
+) -> PyResult<(Vec<Vec<f64>>, Vec<f64>)> {
+    if closes.is_empty() {
+        return Ok((Vec::new(), Vec::new()));
     }
-    Ok(equity)
+    if fast_period == 0 || slow_period == 0 || fast_period >= slow_period {
+        return Err(PyValueError::new_err(
+            "require fast_period >= 1, slow_period >= 1, and fast_period < slow_period",
+        ));
+    }
+    let n = closes[0].len();
+    for (i, c) in closes.iter().enumerate() {
+        if c.len() != n {
+            return Err(PyValueError::new_err(format!(
+                "symbol {i} length {} != first symbol length {n}",
+                c.len()
+            )));
+        }
+    }
+
+    let m = closes.len();
+    let mut w = weights;
+    if w.is_empty() {
+        w = vec![1.0 / m as f64; m];
+    } else if w.len() != m {
+        return Err(PyValueError::new_err(
+            "weights length must match number of symbols (or be empty for equal weight)",
+        ));
+    }
+    let wsum: f64 = w.iter().sum();
+    if wsum <= 0.0 || !wsum.is_finite() {
+        return Err(PyValueError::new_err("weights must sum to a positive finite value"));
+    }
+    for wi in &mut w {
+        *wi /= wsum;
+    }
+
+    let per_symbol: Vec<Vec<f64>> = closes
+        .par_iter()
+        .map(|close| {
+            let sma_f = sma_slice(close, fast_period);
+            let sma_s = sma_slice(close, slow_period);
+            equity_sma_crossover_slice(close, &sma_f, &sma_s, initial_balance, position_fraction)
+        })
+        .collect();
+
+    let mut portfolio = vec![0.0_f64; n];
+    for (sym_eq, &wi) in per_symbol.iter().zip(w.iter()) {
+        for i in 0..n {
+            // Normalize each curve to returns vs initial, then re-scale to portfolio capital.
+            let ret = if initial_balance != 0.0 {
+                (sym_eq[i] / initial_balance) - 1.0
+            } else {
+                0.0
+            };
+            portfolio[i] += wi * initial_balance * (1.0 + ret);
+        }
+    }
+    Ok((per_symbol, portfolio))
 }
 
 #[pymodule]
@@ -188,5 +434,8 @@ fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rsi, m)?)?;
     m.add_function(wrap_pyfunction!(batch_sma, m)?)?;
     m.add_function(wrap_pyfunction!(equity_sma_crossover, m)?)?;
+    m.add_function(wrap_pyfunction!(sweep_sma_crossover, m)?)?;
+    m.add_function(wrap_pyfunction!(walk_forward_sma_sweep, m)?)?;
+    m.add_function(wrap_pyfunction!(multi_symbol_equity_aggregate, m)?)?;
     Ok(())
 }

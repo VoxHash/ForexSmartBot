@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.3] - 2026-10-24
+
+### Added
+- **Native walk-forward sweeps**: `fsb_core` `sweep_sma_crossover` + `walk_forward_sma_sweep` (rayon); Python helpers `walk_forward_windows` / wrappers in `native_indicators`
+- **Multi-symbol aggregation workers**: `multi_symbol_equity_aggregate` (parallel per-symbol equity + weighted portfolio curve)
+- **Docs**: `docs/V3.3.3_FEATURES.md`; PERFORMANCE_TUNING / README native section updated
+- **Tests**: sweep, walk-forward, multi-symbol (+ NumPy fallback) in `tests/test_native_indicators.py`
+
+### Changed
+- **Version**: Package/app bumped to **3.3.3**; optional `fsb_core` to **0.2.0**
+
 ## [3.3.2] - 2026-10-24
 
 ### Added

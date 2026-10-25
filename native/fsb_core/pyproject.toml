@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "fsb-core"
-version = "0.1.0"
+version = "0.2.0"
 description = "Native Rust indicator helpers for ForexSmartBot"
 requires-python = ">=3.10"
 classifiers = [

@@ -107,3 +107,70 @@ def test_equity_sma_crossover_runs():
     assert equity.shape == close.shape
     assert np.all(np.isfinite(equity))
     assert equity[0] == pytest.approx(10_000.0)
+
+
+def test_sweep_sma_crossover_grid():
+    close = _close(n=120, seed=21)
+    rows = ni.sweep_sma_crossover(
+        close,
+        fast_periods=[3, 5, 8],
+        slow_periods=[10, 15, 20],
+        initial_balance=10_000.0,
+    )
+    assert rows.ndim == 2 and rows.shape[1] == 5
+    assert rows.shape[0] == 9  # all fast < slow
+    assert np.all(rows[:, 0] < rows[:, 1])
+    assert np.all(np.isfinite(rows[:, 2:]))
+
+
+def test_walk_forward_sma_sweep():
+    close = _close(n=200, seed=31)
+    windows = ni.walk_forward_windows(len(close), train_size=60, test_size=20, step_size=20)
+    assert len(windows) >= 2
+    rows = ni.walk_forward_sma_sweep(
+        close,
+        fast_periods=[4, 6],
+        slow_periods=[12, 18],
+        windows=windows,
+        initial_balance=10_000.0,
+    )
+    assert rows.shape == (len(windows), 6)
+    assert np.all(rows[:, 0] < rows[:, 1])
+    assert np.all(np.isfinite(rows[:, 2:]))
+
+
+def test_multi_symbol_equity_aggregate():
+    closes = [_close(n=80, seed=40 + i) for i in range(3)]
+    out = ni.multi_symbol_equity_aggregate(
+        closes,
+        fast_period=5,
+        slow_period=15,
+        initial_balance=10_000.0,
+        weights=[0.5, 0.3, 0.2],
+    )
+    assert len(out["per_symbol"]) == 3
+    assert out["portfolio"].shape == (80,)
+    assert np.all(np.isfinite(out["portfolio"]))
+    assert out["portfolio"][0] == pytest.approx(10_000.0)
+
+
+def test_sweep_and_multi_symbol_numpy_fallback(monkeypatch):
+    monkeypatch.setattr(ni, "_NATIVE", None)
+    monkeypatch.setattr(ni, "_NATIVE_ERR", "forced-off-for-test")
+    close = _close(n=90, seed=51)
+    rows = ni.sweep_sma_crossover(close, [5], [15], initial_balance=5_000.0)
+    assert rows.shape == (1, 5)
+    assert rows[0, 2] == pytest.approx(5_000.0) or np.isfinite(rows[0, 2])
+
+    windows = ni.walk_forward_windows(len(close), 40, 15, 15)
+    wf = ni.walk_forward_sma_sweep(close, [5], [15], windows, initial_balance=5_000.0)
+    assert wf.shape[0] == len(windows)
+
+    multi = ni.multi_symbol_equity_aggregate(
+        [close, _close(n=90, seed=52)],
+        fast_period=5,
+        slow_period=15,
+        initial_balance=5_000.0,
+    )
+    assert len(multi["per_symbol"]) == 2
+    assert multi["portfolio"].shape == (90,)

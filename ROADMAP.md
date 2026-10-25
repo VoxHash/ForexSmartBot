@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.3.x** line (latest **3.3.2**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.3.x** line (latest **3.3.3**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -27,10 +27,11 @@ High-level milestones aligned with the current **3.3.x** line (latest **3.3.2**)
 - [x] **Q2 polish (3.3.1)**: strategy history charts API + dashboard sparklines; QR pairing session/redeem; companion approve/reject action queue; Android Compose UI + ZXing QR image pairing + cert pinning hooks; F-Droid metadata draft.
 - [x] **Q2 hardening (3.3.2)**: live CameraX QR; encrypted local session/portfolio cache; production cert-pin defaults (`FSB_COMPANION_CERT_PIN`, `-PFSB_CERT_PINS`); multi-host dashboard poll; companion **0.3.0**. Remaining: published F-Droid / Play listing (external store submit).
 
-## Native performance core (in progress)
-- **Rust (`native/fsb_core` via PyO3/maturin)** for indicator math (SMA/ATR/RSI), rayon batch SMA, and a compact SMA-crossover equity loop — chosen over Go/Zig/C for memory safety + strong Python interop; Ruby is a poor fit for this CPU-bound goal.
-- Optional build: `cd native/fsb_core && maturin develop --release`. Python call sites fall back to NumPy when the extension is missing.
-- Further candidates: walk-forward parameter sweeps and multi-symbol aggregation workers (keep PyQt on the Python side).
+## Native performance core
+- [x] **Indicators + equity (fsb_core 0.1.x)**: SMA/ATR/RSI, rayon batch SMA, compact SMA-crossover equity loop (PyO3/maturin; NumPy fallback).
+- [x] **Walk-forward + multi-symbol (3.3.3 / fsb_core 0.2.0)**: parallel SMA parameter grid sweep, walk-forward train/test window sweep, multi-symbol equity aggregation workers (PyQt stays on Python side).
+- Optional build: `cd native/fsb_core && maturin develop --release`.
+- Further candidates (later): additional strategy kernels beyond SMA-crossover; optional maturin wheels in CI artifacts.
 
 ## Future — Android / GrapheneOS
 - [x] **API + scaffold (3.3.0)**: Kotlin client talks to remote-monitor `/api/v1/companion/*`; webhook alerts; no Google deps in scaffold; broker keys stay on desktop.
