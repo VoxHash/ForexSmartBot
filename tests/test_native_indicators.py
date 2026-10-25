@@ -277,3 +277,57 @@ def test_ema_macd_numpy_fallback(monkeypatch):
     assert rows.shape == (1, 5)
     macd_rows = ni.sweep_macd(close, [8], [17], [5], initial_balance=5_000.0)
     assert macd_rows.shape == (1, 6)
+
+
+def test_bollinger_matches_pandas():
+    close = _close(n=80, seed=101)
+    period, num_std = 20, 2.0
+    bands = ni.bollinger(close, period, num_std)
+    assert set(bands) == {"middle", "upper", "lower"}
+    s = pd.Series(close)
+    mid = s.rolling(period).mean().to_numpy()
+    std = s.rolling(period).std().to_numpy()
+    np.testing.assert_allclose(bands["middle"][period - 1 :], mid[period - 1 :], rtol=1e-9, atol=1e-12)
+    np.testing.assert_allclose(
+        bands["upper"][period - 1 :],
+        (mid + num_std * std)[period - 1 :],
+        rtol=1e-9,
+        atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        bands["lower"][period - 1 :],
+        (mid - num_std * std)[period - 1 :],
+        rtol=1e-9,
+        atol=1e-12,
+    )
+
+
+def test_equity_bollinger_and_sweep():
+    close = _close(n=120, seed=102)
+    bands = ni.bollinger(close, 20, 2.0)
+    equity = ni.equity_bollinger_mean_reversion(
+        close, bands["upper"], bands["lower"], initial_balance=10_000.0
+    )
+    assert equity.shape == close.shape
+    assert np.all(np.isfinite(equity))
+    assert equity[0] == pytest.approx(10_000.0)
+    rows = ni.sweep_bollinger_mean_reversion(
+        close, periods=[10, 20], num_stds=[1.5, 2.0], initial_balance=10_000.0
+    )
+    assert rows.ndim == 2 and rows.shape[1] == 5
+    assert rows.shape[0] == 4
+    assert np.all(rows[:, 0] >= 10)
+    assert np.all(np.isfinite(rows[:, 2:]))
+
+
+def test_bollinger_numpy_fallback(monkeypatch):
+    monkeypatch.setattr(ni, "_NATIVE", None)
+    monkeypatch.setattr(ni, "_NATIVE_ERR", "forced-off-for-test")
+    close = _close(n=90, seed=103)
+    bands = ni.bollinger(close, 15, 2.0)
+    assert bands["middle"].shape == close.shape
+    rows = ni.sweep_bollinger_mean_reversion(
+        close, [15], [2.0], initial_balance=5_000.0
+    )
+    assert rows.shape == (1, 5)
+    assert np.isfinite(rows[0, 2])

@@ -822,3 +822,156 @@ def sweep_macd(
                 rows.append([float(fast), float(slow), float(sig), final_eq, ret, dd])
     return np.asarray(rows, dtype=np.float64).reshape(-1, 6) if rows else np.zeros((0, 6))
 
+
+def bollinger(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    period: int = 20,
+    num_std: float = 2.0,
+) -> Dict[str, np.ndarray]:
+    """Bollinger Bands (SMA middle ± ``num_std`` × sample std).
+
+    Returns ``{"middle", "upper", "lower"}``. Std uses ddof=1 (pandas rolling).
+    """
+    if period < 2:
+        raise ValueError("period must be >= 2")
+    if not np.isfinite(num_std) or num_std <= 0.0:
+        raise ValueError("num_std must be finite and > 0")
+    arr = _as_f64(close)
+    if _NATIVE is not None and hasattr(_NATIVE, "bollinger"):
+        mid, up, lo = _NATIVE.bollinger(arr.tolist(), int(period), float(num_std))
+        return {
+            "middle": np.asarray(mid, dtype=np.float64),
+            "upper": np.asarray(up, dtype=np.float64),
+            "lower": np.asarray(lo, dtype=np.float64),
+        }
+    middle = sma(arr, period)
+    # Sample std (ddof=1) matching pandas Series.rolling(period).std()
+    n = arr.shape[0]
+    std = np.full(n, np.nan, dtype=np.float64)
+    if n >= period:
+        for i in range(period - 1, n):
+            window = arr[i + 1 - period : i + 1]
+            std[i] = float(np.std(window, ddof=1))
+    upper = middle + float(num_std) * std
+    lower = middle - float(num_std) * std
+    return {"middle": middle, "upper": upper, "lower": lower}
+
+
+def equity_bollinger_mean_reversion(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    upper: Sequence[float] | np.ndarray | pd.Series,
+    lower: Sequence[float] | np.ndarray | pd.Series,
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """Bollinger mean-reversion equity: long on cross up through lower, short on cross down through upper."""
+    c = _as_f64(close)
+    u = _as_f64(upper)
+    lo = _as_f64(lower)
+    if c.shape != u.shape or c.shape != lo.shape:
+        raise ValueError("close, upper, and lower lengths must match")
+    if _NATIVE is not None and hasattr(_NATIVE, "equity_bollinger_mean_reversion"):
+        return np.asarray(
+            _NATIVE.equity_bollinger_mean_reversion(
+                c.tolist(),
+                u.tolist(),
+                lo.tolist(),
+                float(initial_balance),
+                float(position_fraction),
+            ),
+            dtype=np.float64,
+        )
+    n = c.shape[0]
+    balance = float(initial_balance)
+    side = 0
+    size = 0.0
+    entry = 0.0
+    equity = np.empty(n, dtype=np.float64)
+    for i in range(n):
+        px = float(c[i])
+        if i >= 1:
+            up_i, lo_i = float(u[i]), float(lo[i])
+            prev = float(c[i - 1])
+            if not (np.isnan(up_i) or np.isnan(lo_i)):
+                cross_up = prev <= lo_i and px > lo_i
+                cross_dn = prev >= up_i and px < up_i
+                if cross_up and side <= 0:
+                    if side < 0:
+                        balance += -size * (px - entry)
+                    size = (balance * position_fraction) / px
+                    entry = px
+                    side = 1
+                elif cross_dn and side >= 0:
+                    if side > 0:
+                        balance += size * (px - entry)
+                    size = (balance * position_fraction) / px
+                    entry = px
+                    side = -1
+        mtm = side * size * (px - entry) if side else 0.0
+        equity[i] = balance + mtm
+    return equity
+
+
+def _bollinger_mean_reversion_metrics(
+    close: np.ndarray,
+    period: int,
+    num_std: float,
+    initial_balance: float,
+    position_fraction: float,
+) -> Tuple[float, float, float]:
+    if close.size == 0 or period < 2 or not np.isfinite(num_std) or num_std <= 0.0:
+        return float(initial_balance), 0.0, 0.0
+    bands = bollinger(close, period, num_std)
+    equity = equity_bollinger_mean_reversion(
+        close,
+        bands["upper"],
+        bands["lower"],
+        initial_balance=initial_balance,
+        position_fraction=position_fraction,
+    )
+    final_eq = float(equity[-1]) if equity.size else float(initial_balance)
+    total_return = (
+        (final_eq - initial_balance) / initial_balance if initial_balance != 0.0 else 0.0
+    )
+    return final_eq, total_return, _max_drawdown(equity)
+
+
+def sweep_bollinger_mean_reversion(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    periods: Sequence[int],
+    num_stds: Sequence[float],
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """Parallel Bollinger mean-reversion parameter grid sweep.
+
+    Returns rows
+    ``[period, num_std, final_equity, total_return, max_drawdown]``
+    for every pair with ``period >= 2`` and ``num_std > 0``.
+    """
+    arr = _as_f64(close)
+    per_list = [int(x) for x in periods]
+    std_list = [float(x) for x in num_stds]
+    if _NATIVE is not None and hasattr(_NATIVE, "sweep_bollinger_mean_reversion"):
+        rows = _NATIVE.sweep_bollinger_mean_reversion(
+            arr.tolist(),
+            per_list,
+            std_list,
+            float(initial_balance),
+            float(position_fraction),
+        )
+        return np.asarray(rows, dtype=np.float64).reshape(-1, 5) if rows else np.zeros((0, 5))
+
+    rows: List[List[float]] = []
+    for period in per_list:
+        if period < 2:
+            continue
+        for ns in std_list:
+            if not np.isfinite(ns) or ns <= 0.0:
+                continue
+            final_eq, ret, dd = _bollinger_mean_reversion_metrics(
+                arr, period, ns, float(initial_balance), float(position_fraction)
+            )
+            rows.append([float(period), float(ns), final_eq, ret, dd])
+    return np.asarray(rows, dtype=np.float64).reshape(-1, 5) if rows else np.zeros((0, 5))
+

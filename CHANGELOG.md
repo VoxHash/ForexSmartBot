@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.7] - 2026-10-25
+
+### Added
+- **Bollinger kernels**: `bollinger`, `equity_bollinger_mean_reversion`, `sweep_bollinger_mean_reversion` in `fsb_core` / `native_indicators` (NumPy fallback; sample std ddof=1)
+- **Multi-platform wheels**: `publish-fsb-core.yml` builds Windows x64 and macOS arm64/x86_64 wheels (Python 3.10–3.13) alongside manylinux
+- **Docs**: `docs/V3.3.7_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.3.7**; optional `fsb_core` to **0.5.0**
+
 ## [3.3.6] - 2026-10-25
 
 ### Added

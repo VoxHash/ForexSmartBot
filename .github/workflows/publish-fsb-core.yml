@@ -1,7 +1,7 @@
 name: Publish fsb-core to PyPI
 
-# Builds manylinux wheels + sdist for the optional native extension and
-# publishes on tags matching fsb-core-v*.*.* (or manual dispatch).
+# Builds manylinux + Windows + macOS wheels + sdist for the optional native
+# extension and publishes on tags matching fsb-core-v*.*.* (or manual dispatch).
 # Requires a PyPI Trusted Publisher for project fsb-core → workflow publish-fsb-core.yml
 # (or PYPI_API_TOKEN secret). First release (0.4.0) was uploaded via token+twine.
 
@@ -15,8 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: wheel (${{ matrix.python }})
+  linux:
+    name: wheel-linux (${{ matrix.python }})
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -36,7 +36,80 @@ jobs:
           manylinux: auto
       - uses: actions/upload-artifact@v4
         with:
-          name: fsb-core-wheel-cp${{ matrix.python }}
+          name: fsb-core-wheel-linux-cp${{ matrix.python }}
+          path: native/fsb_core/dist/*.whl
+
+  windows:
+    name: wheel-windows (${{ matrix.python }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: native/fsb_core
+          target: x64
+          command: build
+          args: --release --out dist -i python${{ matrix.python }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fsb-core-wheel-windows-cp${{ matrix.python }}
+          path: native/fsb_core/dist/*.whl
+
+  macos:
+    name: wheel-macos (${{ matrix.target }} / ${{ matrix.python }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            target: aarch64
+            python: "3.10"
+          - runner: macos-14
+            target: aarch64
+            python: "3.11"
+          - runner: macos-14
+            target: aarch64
+            python: "3.12"
+          - runner: macos-14
+            target: aarch64
+            python: "3.13"
+          - runner: macos-13
+            target: x86_64
+            python: "3.10"
+          - runner: macos-13
+            target: x86_64
+            python: "3.11"
+          - runner: macos-13
+            target: x86_64
+            python: "3.12"
+          - runner: macos-13
+            target: x86_64
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: native/fsb_core
+          target: ${{ matrix.target }}
+          command: build
+          args: --release --out dist -i python${{ matrix.python }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fsb-core-wheel-macos-${{ matrix.target }}-cp${{ matrix.python }}
           path: native/fsb_core/dist/*.whl
 
   sdist:
@@ -55,7 +128,7 @@ jobs:
           path: native/fsb_core/dist/*.tar.gz
 
   publish:
-    needs: [build, sdist]
+    needs: [linux, windows, macos, sdist]
     runs-on: ubuntu-24.04
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/fsb-core-v')
     permissions:

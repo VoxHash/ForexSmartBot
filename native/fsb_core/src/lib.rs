@@ -1,10 +1,10 @@
 //! Native CPU-bound helpers for ForexSmartBot.
 //!
-//! Implements rolling indicators (SMA, EMA, ATR, RSI, MACD), batch SMA via rayon,
-//! SMA/EMA-crossover equity, MACD-signal crossover equity, walk-forward sweeps,
-//! multi-symbol portfolio aggregation, and RSI mean-reversion equity/sweeps so
-//! indicator/backtest hot paths can run with lower overhead than pure
-//! pandas while the PyQt UI stays responsive.
+//! Implements rolling indicators (SMA, EMA, ATR, RSI, MACD, Bollinger), batch SMA
+//! via rayon, SMA/EMA-crossover equity, MACD-signal crossover equity, Bollinger
+//! mean-reversion equity, walk-forward sweeps, multi-symbol portfolio aggregation,
+//! and RSI mean-reversion equity/sweeps so indicator/backtest hot paths can run
+//! with lower overhead than pure pandas while the PyQt UI stays responsive.
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -120,6 +120,62 @@ fn atr_slice(high: &[f64], low: &[f64], close: &[f64], period: usize) -> Result<
         }
     }
     Ok(sma_slice(&tr, period))
+}
+
+/// Rolling sample standard deviation (ddof=1), matching pandas `rolling.std()`.
+/// Leading `window-1` samples are NaN; requires `window >= 2`.
+fn rolling_std_slice(values: &[f64], window: usize) -> Vec<f64> {
+    let n = values.len();
+    let mut out = vec![f64::NAN; n];
+    if window < 2 || n < window {
+        return out;
+    }
+    let mut sum = 0.0_f64;
+    let mut sumsq = 0.0_f64;
+    for i in 0..n {
+        let v = values[i];
+        sum += v;
+        sumsq += v * v;
+        if i + 1 >= window {
+            if i + 1 > window {
+                let old = values[i - window];
+                sum -= old;
+                sumsq -= old * old;
+            }
+            let mean = sum / window as f64;
+            let var = (sumsq - sum * mean) / (window - 1) as f64;
+            out[i] = if var > 0.0 { var.sqrt() } else { 0.0 };
+        }
+    }
+    out
+}
+
+/// Bollinger Bands: middle (SMA), upper, lower. `num_std` is the band multiplier.
+fn bollinger_slices(
+    close: &[f64],
+    period: usize,
+    num_std: f64,
+) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>), String> {
+    if period < 2 {
+        return Err("period must be >= 2".into());
+    }
+    if !num_std.is_finite() || num_std <= 0.0 {
+        return Err("num_std must be finite and > 0".into());
+    }
+    let middle = sma_slice(close, period);
+    let std = rolling_std_slice(close, period);
+    let n = close.len();
+    let mut upper = vec![f64::NAN; n];
+    let mut lower = vec![f64::NAN; n];
+    for i in 0..n {
+        let m = middle[i];
+        let s = std[i];
+        if !m.is_nan() && !s.is_nan() {
+            upper[i] = m + num_std * s;
+            lower[i] = m - num_std * s;
+        }
+    }
+    Ok((middle, upper, lower))
 }
 
 /// Classic RSI using simple rolling mean of gains/losses.
@@ -859,6 +915,167 @@ fn sweep_macd(
     Ok(out)
 }
 
+/// Bollinger mean-reversion equity: long when price crosses up through the
+/// lower band, short when price crosses down through the upper band.
+fn equity_bollinger_mean_reversion_slice(
+    close: &[f64],
+    upper: &[f64],
+    lower: &[f64],
+    initial_balance: f64,
+    position_fraction: f64,
+) -> Vec<f64> {
+    let n = close.len();
+    let mut balance = initial_balance;
+    let mut side: i8 = 0;
+    let mut size = 0.0_f64;
+    let mut entry = 0.0_f64;
+    let mut equity = Vec::with_capacity(n);
+
+    for i in 0..n {
+        let px = close[i];
+        if i >= 1 {
+            let up = upper[i];
+            let lo = lower[i];
+            let prev = close[i - 1];
+            if !up.is_nan() && !lo.is_nan() {
+                let cross_up = prev <= lo && px > lo;
+                let cross_dn = prev >= up && px < up;
+                if cross_up && side <= 0 {
+                    if side < 0 {
+                        balance += -size * (px - entry);
+                    }
+                    size = (balance * position_fraction) / px;
+                    entry = px;
+                    side = 1;
+                } else if cross_dn && side >= 0 {
+                    if side > 0 {
+                        balance += size * (px - entry);
+                    }
+                    size = (balance * position_fraction) / px;
+                    entry = px;
+                    side = -1;
+                }
+            }
+        }
+        let mtm = if side != 0 {
+            side as f64 * size * (px - entry)
+        } else {
+            0.0
+        };
+        equity.push(balance + mtm);
+    }
+    equity
+}
+
+fn bollinger_mean_reversion_metrics(
+    close: &[f64],
+    period: usize,
+    num_std: f64,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> (f64, f64, f64) {
+    if close.is_empty() || period < 2 || !num_std.is_finite() || num_std <= 0.0 {
+        return (initial_balance, 0.0, 0.0);
+    }
+    let Ok((_, upper, lower)) = bollinger_slices(close, period, num_std) else {
+        return (initial_balance, 0.0, 0.0);
+    };
+    let equity = equity_bollinger_mean_reversion_slice(
+        close,
+        &upper,
+        &lower,
+        initial_balance,
+        position_fraction,
+    );
+    let final_eq = *equity.last().unwrap_or(&initial_balance);
+    let total_return = if initial_balance != 0.0 {
+        (final_eq - initial_balance) / initial_balance
+    } else {
+        0.0
+    };
+    (final_eq, total_return, max_drawdown(&equity))
+}
+
+/// Returns `(middle, upper, lower)` Bollinger Bands.
+#[pyfunction]
+fn bollinger(
+    close: Vec<f64>,
+    period: usize,
+    num_std: f64,
+) -> PyResult<(Vec<f64>, Vec<f64>, Vec<f64>)> {
+    bollinger_slices(&close, period, num_std).map_err(PyValueError::new_err)
+}
+
+/// Compact Bollinger mean-reversion equity over aligned close/band series.
+#[pyfunction]
+fn equity_bollinger_mean_reversion(
+    close: Vec<f64>,
+    upper: Vec<f64>,
+    lower: Vec<f64>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<f64>> {
+    let n = close.len();
+    if upper.len() != n || lower.len() != n {
+        return Err(PyValueError::new_err(
+            "close, upper, and lower lengths must match",
+        ));
+    }
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(equity_bollinger_mean_reversion_slice(
+        &close,
+        &upper,
+        &lower,
+        initial_balance,
+        position_fraction,
+    ))
+}
+
+/// Parallel Bollinger mean-reversion parameter sweep.
+///
+/// Each result row:
+/// `[period, num_std, final_equity, total_return, max_drawdown]`.
+/// Only pairs with `period >= 2` and `num_std > 0` are evaluated.
+#[pyfunction]
+fn sweep_bollinger_mean_reversion(
+    close: Vec<f64>,
+    periods: Vec<usize>,
+    num_stds: Vec<f64>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<Vec<f64>>> {
+    if close.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut pairs: Vec<(usize, f64)> = Vec::new();
+    for &period in &periods {
+        if period < 2 {
+            continue;
+        }
+        for &ns in &num_stds {
+            if ns.is_finite() && ns > 0.0 {
+                pairs.push((period, ns));
+            }
+        }
+    }
+    let out: Vec<Vec<f64>> = pairs
+        .par_iter()
+        .map(|&(period, ns)| {
+            let (final_eq, ret, dd) = bollinger_mean_reversion_metrics(
+                &close,
+                period,
+                ns,
+                initial_balance,
+                position_fraction,
+            );
+            vec![period as f64, ns, final_eq, ret, dd]
+        })
+        .collect();
+    Ok(out)
+}
+
 #[pymodule]
 fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -878,5 +1095,8 @@ fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sweep_ema_crossover, m)?)?;
     m.add_function(wrap_pyfunction!(equity_macd_crossover, m)?)?;
     m.add_function(wrap_pyfunction!(sweep_macd, m)?)?;
+    m.add_function(wrap_pyfunction!(bollinger, m)?)?;
+    m.add_function(wrap_pyfunction!(equity_bollinger_mean_reversion, m)?)?;
+    m.add_function(wrap_pyfunction!(sweep_bollinger_mean_reversion, m)?)?;
     Ok(())
 }
