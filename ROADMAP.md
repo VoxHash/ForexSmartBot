@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.3.x** line (latest **3.3.5**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.3.x** line (latest **3.3.6**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -32,8 +32,9 @@ High-level milestones aligned with the current **3.3.x** line (latest **3.3.5**)
 - [x] **Walk-forward + multi-symbol (3.3.3 / fsb_core 0.2.0)**: parallel SMA parameter grid sweep, walk-forward train/test window sweep, multi-symbol equity aggregation workers (PyQt stays on Python side).
 - [x] **RSI mean-reversion + CI wheels (3.3.4 / fsb_core 0.3.0)**: RSI mean-reversion equity + parallel parameter sweep; maturin `fsb_core` wheels as CI artifacts.
 - [x] **EMA / MACD kernels (3.3.5 / fsb_core 0.4.0)**: EMA + MACD indicators; EMA-crossover and MACD-signal equity + parallel sweeps; Actions pinned to `ubuntu-24.04`.
-- Optional build: `cd native/fsb_core && maturin develop --release`.
-- Further candidates (later): publish `fsb_core` wheels to PyPI alongside the pure-Python package.
+- [x] **Publish fsb_core to PyPI (3.3.6 / fsb-core 0.4.0)**: `pip install fsb-core`; `publish-fsb-core.yml` for multi-Python manylinux wheels on `fsb-core-v*` tags.
+- Optional build: `cd native/fsb_core && maturin develop --release` (or `pip install fsb-core`).
+- Further candidates (later): additional strategy kernels; broader platform wheels (Windows/macOS) via CI matrix.
 
 ## Future — Android / GrapheneOS
 - [x] **API + scaffold (3.3.0)**: Kotlin client talks to remote-monitor `/api/v1/companion/*`; webhook alerts; no Google deps in scaffold; broker keys stay on desktop.

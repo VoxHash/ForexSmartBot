@@ -35,8 +35,8 @@ Canonical performance and memory guide for ForexSmartBot.
 Indicator and compact backtest loops are CPU-bound and run often during strategy evaluation. The optional Rust extension under `native/fsb_core` (PyO3 + rayon) offloads SMA/EMA/ATR/RSI/MACD, batch SMA, SMA/EMA-crossover and MACD-signal equity curves, **walk-forward / grid parameter sweeps**, **RSI mean-reversion equity/sweeps**, and **multi-symbol equity aggregation** so the PyQt process shares the machine more cleanly with other apps.
 
 ```bash
-pip install maturin
-cd native/fsb_core && maturin develop --release
+pip install fsb-core
+# or: pip install maturin && cd native/fsb_core && maturin develop --release
 python -c "from forexsmartbot.utils.native_indicators import native_status; print(native_status())"
 ```
 

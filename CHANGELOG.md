@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.6] - 2026-10-25
+
+### Added
+- **`fsb-core` on PyPI**: optional native package published as [`fsb-core`](https://pypi.org/project/fsb-core/) **0.4.0** (sdist + wheel); install with `pip install fsb-core`
+- **CI**: `publish-fsb-core.yml` builds manylinux wheels (3.10–3.13) + sdist for future `fsb-core-v*` tags / Trusted Publisher
+- **Docs**: `docs/V3.3.6_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.3.6**
+
 ## [3.3.5] - 2026-10-25
 
 ### Added

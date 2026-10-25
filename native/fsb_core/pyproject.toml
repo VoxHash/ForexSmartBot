@@ -5,12 +5,27 @@ build-backend = "maturin"
 [project]
 name = "fsb-core"
 version = "0.4.0"
-description = "Native Rust indicator helpers for ForexSmartBot"
+description = "Native Rust indicator and equity helpers for ForexSmartBot (PyO3)"
+readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "VoxHash", email = "contact@voxhash.dev" }]
+keywords = ["forex", "indicators", "backtest", "pyo3", "rust"]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
 ]
+urls = { Homepage = "https://github.com/VoxHash/ForexSmartBot", Repository = "https://github.com/VoxHash/ForexSmartBot", Issues = "https://github.com/VoxHash/ForexSmartBot/issues" }
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
