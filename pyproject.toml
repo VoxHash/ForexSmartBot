@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forexsmartbot"
-version = "3.4.0"
+version = "3.4.1"
 description = "Professional forex trading bot with advanced risk management and strategy plugins"
 authors = [{name = "VoxHash", email = "contact@voxhash.dev"}]
 license = {text = "MIT"}
@@ -160,4 +160,5 @@ addopts = [
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
+    "network: marks tests that call live public venue APIs",
 ]

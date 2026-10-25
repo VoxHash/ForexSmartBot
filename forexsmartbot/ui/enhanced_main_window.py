@@ -1217,6 +1217,20 @@ class EnhancedMainWindow(QMainWindow):
                 self.append_log(
                     f"IB TWS broker initialized: {ib_host}:{ib_port}, clientId={ib_client_id}"
                 )
+            elif broker_mode == "Kraken Public":
+                from forexsmartbot.adapters.brokers.kraken_public_broker import (
+                    KrakenPublicBroker,
+                )
+
+                self.broker = KrakenPublicBroker()
+                self.append_log("Kraken Public (read-only) broker initialized")
+            elif broker_mode == "Binance Public":
+                from forexsmartbot.adapters.brokers.binance_public_broker import (
+                    BinancePublicBroker,
+                )
+
+                self.broker = BinancePublicBroker(sandbox=True)
+                self.append_log("Binance Public testnet (read-only) broker initialized")
             else:
                 self.broker = PaperBroker(10000.0)
                 self.append_log("Unknown broker mode - using paper broker")

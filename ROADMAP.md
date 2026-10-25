@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.4.x** line (latest **3.4.0**; prior **3.3.9**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.4.x** line (latest **3.4.1**; prior **3.4.0** / **3.3.9**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -49,18 +49,18 @@ High-level milestones aligned with the current **3.4.x** line (latest **3.4.0**;
 - Remaining: published F-Droid / Play store listing (metadata draft ready; submit outside this repo).
 
 ## Future — Multi-venue CEX / DEX (commodities + FX / crypto pairs)
-Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Not started** — research and adapters only when scheduled; no live CEX/DEX trading in the current 3.3.x line.
+Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Research + thin public adapters shipped in 3.4.1** — no authenticated CEX/DEX order flow yet.
 
 Phased delivery (realistic order):
-- [ ] **Research**: Map symbol/asset coverage (FX pairs, commodities, spot crypto) and venue capabilities for **centralized exchanges/brokers** (explicitly including **Binance**, **Kraken**, and similar REST/WebSocket APIs) and **decentralized exchanges/platforms** (on-chain or aggregator APIs where suitable). Prefer testnet/sandbox docs first.
-- [ ] **Adapters**: Implement thin `IBroker` (+ optional market-data) adapters behind existing settings/env config; keep PyQt UI on the host; no keys in the mobile companion.
+- [x] **Research (3.4.1)**: Map symbol/asset coverage (FX pairs, commodities, spot crypto) and venue capabilities for **centralized exchanges/brokers** (**Binance**, **Kraken**) and **DEX aggregators** (**1inch**). Live public probes + `docs/MULTI_VENUE_RESEARCH.md`; prefer testnet/sandbox docs first.
+- [x] **Adapters (3.4.1, public/read-only)**: Thin `KrakenPublicBroker` + `BinancePublicBroker` behind Settings broker mode / env; PyQt stays on the host; no keys in the mobile companion. Authenticated trade adapters still open.
 - [ ] **Paper / sandbox**: Wire paper or venue testnet paths end-to-end (orders, positions, reconnect) before any mainnet funds.
 - [ ] **Live (opt-in)**: Production credentials only via local `.env` / UI secrets store; least-privilege API keys (trade-only where possible; no withdraw); kill-switch and risk limits reuse existing risk engine.
 
 Opsec (required for this milestone):
-- [ ] API keys and secrets never committed; `.env` gitignored; `.env.example` placeholders only
-- [ ] Secrets not logged (requests, health, companion, or crash dumps)
-- [ ] Document required env vars without real values; recommend IP allowlists / key rotation per venue
+- [x] API keys and secrets never committed; `.env` gitignored; `.env.example` placeholders only (`KRAKEN_*` / `BINANCE_*` / `ONEINCH_*`)
+- [x] Secrets not logged — `forexsmartbot.venues.secrets` redaction helpers for mappings / bearer text
+- [x] Document required env vars without real values; recommend IP allowlists / key rotation per venue (`docs/MULTI_VENUE_RESEARCH.md`)
 
 Related existing work to reuse: `docs/EXTENDING_BROKERS.md`, paper broker, REST broker scaffold, remote-monitor auth hardening.
 

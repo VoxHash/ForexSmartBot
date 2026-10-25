@@ -98,7 +98,16 @@ class SettingsDialog(QDialog):
         
         # Broker mode
         self.broker_mode_combo = QComboBox()
-        self.broker_mode_combo.addItems(['PAPER', 'MT4', 'REST API', 'IB TWS'])
+        self.broker_mode_combo.addItems(
+            [
+                "PAPER",
+                "MT4",
+                "REST API",
+                "IB TWS",
+                "Kraken Public",
+                "Binance Public",
+            ]
+        )
         layout.addRow(f"{self.tr('broker_mode', 'Broker Mode')}:", self.broker_mode_combo)
         
         # MT4 settings group
@@ -618,6 +627,14 @@ class SettingsDialog(QDialog):
                     client_id=client_id,
                     account_id=account_id,
                 )
+            elif broker_mode == "Kraken Public":
+                from ..adapters.brokers.kraken_public_broker import KrakenPublicBroker
+
+                broker = KrakenPublicBroker()
+            elif broker_mode == "Binance Public":
+                from ..adapters.brokers.binance_public_broker import BinancePublicBroker
+
+                broker = BinancePublicBroker(sandbox=True)
             else:
                 QMessageBox.warning(self, "Broker Test", f"Unsupported broker mode: {broker_mode}")
                 return
@@ -636,9 +653,10 @@ class SettingsDialog(QDialog):
             balance = broker.get_balance()
             equity = broker.get_equity()
 
+            sample_symbol = "BTCUSDT" if broker_mode == "Binance Public" else "EURUSD"
             price_text = "N/A"
             try:
-                sample_price = broker.get_price("EURUSD")
+                sample_price = broker.get_price(sample_symbol)
                 if sample_price is not None:
                     price_text = f"{sample_price:.5f}"
             except Exception:
@@ -651,7 +669,7 @@ class SettingsDialog(QDialog):
                 f"{broker_mode} connected successfully.\n\n"
                 f"Balance: {balance}\n"
                 f"Equity: {equity}\n"
-                f"EURUSD Price: {price_text}",
+                f"{sample_symbol} Price: {price_text}",
             )
             broker.disconnect()
 

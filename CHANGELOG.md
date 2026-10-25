@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.4.1] - 2026-10-25
+
+### Added
+- **Multi-venue research**: `forexsmartbot.venues` registry + live public probes for Kraken Spot/Futures and Binance Spot testnet; DEX aggregator profile for 1inch (`docs/MULTI_VENUE_RESEARCH.md`)
+- **Public broker adapters**: read-only `KrakenPublicBroker` and `BinancePublicBroker` (Settings → Broker Mode); orders refused until authenticated sandbox path
+- **Opsec helpers**: `venues.secrets` redaction; `.env.example` placeholders for Kraken / Binance / 1inch (no real values)
+- **Tests**: `tests/test_multi_venue.py` (registry, redaction, live `@pytest.mark.network` probes)
+
+### Changed
+- **Version**: Package/app bumped to **3.4.1**
+
 ## [3.4.0] - 2026-10-25
 
 ### Added
