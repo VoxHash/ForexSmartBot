@@ -4,6 +4,7 @@ import numpy as np
 from typing import Dict, Optional, List
 from dataclasses import dataclass
 from .interfaces import IRiskManager
+from ..venues.live_guard import kill_switch_forced
 
 
 @dataclass
@@ -39,6 +40,8 @@ class RiskEngine(IRiskManager):
         self._drawdown_throttle = False
         self._recent_trades: List[Dict] = []
         self._max_recent_trades = 20
+        self._kill_switch = False
+        self._kill_reason = ""
         
     def calculate_position_size(self, symbol: str, strategy: str, 
                               balance: float, volatility: Optional[float],
@@ -189,6 +192,48 @@ class RiskEngine(IRiskManager):
     def reset_daily_metrics(self) -> None:
         """Reset daily metrics (call at start of new day)."""
         self._daily_pnl = 0.0
+
+    def trip_kill_switch(self, reason: str = "manual") -> None:
+        """Halt new risk-taking; used by live brokers and UI stop/flatten."""
+        self._kill_switch = True
+        self._kill_reason = reason or "manual"
+
+    def clear_kill_switch(self) -> bool:
+        """Clear a software trip. Env ``FSB_KILL_SWITCH=1`` cannot be cleared."""
+        if kill_switch_forced():
+            return False
+        self._kill_switch = False
+        self._kill_reason = ""
+        return True
+
+    def is_kill_switch_active(self) -> bool:
+        """True when env-forced or a software trip is active."""
+        if kill_switch_forced():
+            return True
+        return bool(self._kill_switch)
+
+    def evaluate_kill_switch(
+        self,
+        current_equity: float,
+        peak_equity: float,
+        daily_pnl: float,
+        balance: float,
+    ) -> bool:
+        """Trip kill-switch from existing daily-risk / max-drawdown limits."""
+        if self.is_kill_switch_active():
+            return True
+        if self.check_daily_risk_limit(daily_pnl, balance):
+            self.trip_kill_switch("daily_risk_limit")
+            return True
+        if self.check_drawdown_limit(current_equity, peak_equity):
+            self.trip_kill_switch("max_drawdown")
+            return True
+        return False
+
+    def get_kill_reason(self) -> str:
+        if kill_switch_forced():
+            return "FSB_KILL_SWITCH"
+        return self._kill_reason
     
     def get_risk_summary(self) -> Dict:
         """Get current risk status summary."""
@@ -199,5 +244,7 @@ class RiskEngine(IRiskManager):
             'current_drawdown': (self._peak_equity - self._current_equity) / self._peak_equity if self._peak_equity > 0 else 0.0,
             'drawdown_throttle': self._drawdown_throttle,
             'recent_trades_count': len(self._recent_trades),
-            'recent_win_rate': self.get_recent_win_rate()
+            'recent_win_rate': self.get_recent_win_rate(),
+            'kill_switch': self.is_kill_switch_active(),
+            'kill_reason': self.get_kill_reason(),
         }

@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.4.3] - 2026-10-25
+
+### Added
+- **Binance Live broker (opt-in)**: `BinanceLiveBroker` for Spot mainnet (`api.binance.com`); requires `FSB_LIVE_TRADING=1` + `BINANCE_LIVE_API_KEY` / `BINANCE_LIVE_API_SECRET`; testnet URLs refused; Settings mode **Binance Live**
+- **Kill-switch**: `RiskEngine.trip_kill_switch` / `evaluate_kill_switch` (daily risk + max drawdown); env `FSB_KILL_SWITCH=1`; UI stop/flatten; live orders blocked while active
+- **Live guard**: `forexsmartbot.venues.live_guard` (`live_trading_enabled`, `require_live_opt_in`)
+- **Tests**: `tests/test_binance_live.py` (opt-in refusal, kill-switch, mocked mainnet path — no real funds)
+- **Docs**: `docs/V3.4.3_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.4.3**
+
 ## [3.4.2] - 2026-10-25
 
 ### Added

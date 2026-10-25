@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.4.x** line (latest **3.4.2**; prior **3.4.1** / **3.4.0**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.4.x** line (latest **3.4.3**; prior **3.4.2** / **3.4.1** / **3.4.0**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -49,13 +49,13 @@ High-level milestones aligned with the current **3.4.x** line (latest **3.4.2**;
 - Remaining: published F-Droid / Play store listing (metadata draft ready; submit outside this repo).
 
 ## Future — Multi-venue CEX / DEX (commodities + FX / crypto pairs)
-Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Research + public adapters in 3.4.1; paper/sandbox E2E in 3.4.2** — mainnet live trading still open.
+Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Research + public adapters in 3.4.1; paper/sandbox E2E in 3.4.2; opt-in mainnet live in 3.4.3**.
 
 Phased delivery (realistic order):
 - [x] **Research (3.4.1)**: Map symbol/asset coverage (FX pairs, commodities, spot crypto) and venue capabilities for **centralized exchanges/brokers** (**Binance**, **Kraken**) and **DEX aggregators** (**1inch**). Live public probes + `docs/MULTI_VENUE_RESEARCH.md`; prefer testnet/sandbox docs first.
 - [x] **Adapters (3.4.1, public/read-only)**: Thin `KrakenPublicBroker` + `BinancePublicBroker` behind Settings broker mode / env; PyQt stays on the host; no keys in the mobile companion. Authenticated trade adapters still open.
 - [x] **Paper / sandbox (3.4.2)**: `VenuePaperBroker` (live public MD + local fills) and `BinanceSandboxBroker` (Spot Test Network HMAC orders/positions/reconnect); Settings modes; mainnet URLs refused; `tests/test_paper_sandbox.py`.
-- [ ] **Live (opt-in)**: Production credentials only via local `.env` / UI secrets store; least-privilege API keys (trade-only where possible; no withdraw); kill-switch and risk limits reuse existing risk engine.
+- [x] **Live (opt-in) (3.4.3)**: `BinanceLiveBroker` on `api.binance.com` only when `FSB_LIVE_TRADING=1`; dedicated `BINANCE_LIVE_API_*` keys; testnet refused; kill-switch via `RiskEngine` + `FSB_KILL_SWITCH`; `tests/test_binance_live.py` (mocked — no CI mainnet orders). Remaining: authenticated Kraken live / DEX execution.
 
 Opsec (required for this milestone):
 - [x] API keys and secrets never committed; `.env` gitignored; `.env.example` placeholders only (`KRAKEN_*` / `BINANCE_*` / `ONEINCH_*`)

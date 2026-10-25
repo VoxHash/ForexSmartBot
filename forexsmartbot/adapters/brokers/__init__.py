@@ -8,6 +8,7 @@ from .kraken_public_broker import KrakenPublicBroker
 from .binance_public_broker import BinancePublicBroker
 from .venue_paper_broker import VenuePaperBroker
 from .binance_sandbox_broker import BinanceSandboxBroker
+from .binance_live_broker import BinanceLiveBroker
 
 __all__ = [
     "PaperBroker",
@@ -18,4 +19,5 @@ __all__ = [
     "BinancePublicBroker",
     "VenuePaperBroker",
     "BinanceSandboxBroker",
+    "BinanceLiveBroker",
 ]

@@ -95,6 +95,21 @@ vp.submit_order("BTCUSDT", 1, 0.001)
 sb = BinanceSandboxBroker()  # refuses api.binance.com
 ```
 
+### Binance Live (3.4.3, opt-in mainnet)
+
+```python
+import os
+os.environ["FSB_LIVE_TRADING"] = "1"  # required; never set in CI
+# BINANCE_LIVE_API_KEY / BINANCE_LIVE_API_SECRET from local .env only
+
+from forexsmartbot.adapters.brokers import BinanceLiveBroker
+from forexsmartbot.core.risk_engine import RiskEngine, RiskConfig
+
+risk = RiskEngine(RiskConfig())
+live = BinanceLiveBroker(risk_engine=risk)  # refuses without FSB_LIVE_TRADING
+# live.connect()  # real mainnet — operator only
+```
+
 ### MT4 Broker
 
 The MT4 broker connects to MetaTrader 4 via ZeroMQ:

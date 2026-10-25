@@ -167,8 +167,18 @@ class TradingController(QObject):
                 symbol, strategy.name, balance, volatility, win_rate
             )
             
-            # Check risk limits
-            if self.risk_manager.check_daily_risk_limit(0, balance):
+            # Check risk limits / kill-switch (reuses RiskEngine daily + drawdown)
+            equity = self.portfolio.get_total_equity()
+            peak = self.portfolio.peak_equity
+            if hasattr(self.risk_manager, "evaluate_kill_switch"):
+                if self.risk_manager.evaluate_kill_switch(equity, peak, 0.0, balance):
+                    self.signal_log_message.emit(
+                        f"Kill-switch active ({self.risk_manager.get_kill_reason()}); "
+                        f"order blocked for {symbol}"
+                    )
+                    self.stop_trading()
+                    return
+            elif self.risk_manager.check_daily_risk_limit(0, balance):
                 self.signal_log_message.emit(f"Daily risk limit exceeded for {symbol}")
                 return
                 

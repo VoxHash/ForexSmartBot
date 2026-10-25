@@ -103,6 +103,7 @@ class SettingsDialog(QDialog):
                 "PAPER",
                 "Venue Paper",
                 "Binance Sandbox",
+                "Binance Live",
                 "MT4",
                 "REST API",
                 "IB TWS",
@@ -607,6 +608,21 @@ class SettingsDialog(QDialog):
                 from ..adapters.brokers.binance_sandbox_broker import BinanceSandboxBroker
 
                 broker = BinanceSandboxBroker()
+            elif broker_mode == "Binance Live":
+                from ..venues.live_guard import live_trading_enabled
+                from ..adapters.brokers.binance_live_broker import BinanceLiveBroker
+
+                if not live_trading_enabled():
+                    QMessageBox.warning(
+                        self,
+                        "Broker Test",
+                        "Binance Live is opt-in only.\n"
+                        "Set FSB_LIVE_TRADING=1 and BINANCE_LIVE_API_KEY / "
+                        "BINANCE_LIVE_API_SECRET in the local .env (never commit).\n"
+                        "Prefer trade-only keys with withdraw disabled.",
+                    )
+                    return
+                broker = BinanceLiveBroker(risk_engine=None)
             elif broker_mode == 'MT4':
                 from ..adapters.brokers.mt4_broker import MT4Broker
                 host = self.mt4_host_edit.text().strip() or "127.0.0.1"
@@ -666,7 +682,12 @@ class SettingsDialog(QDialog):
             sample_symbol = (
                 "BTCUSDT"
                 if broker_mode
-                in ("Binance Public", "Binance Sandbox", "Venue Paper")
+                in (
+                    "Binance Public",
+                    "Binance Sandbox",
+                    "Binance Live",
+                    "Venue Paper",
+                )
                 else "EURUSD"
             )
             price_text = "N/A"

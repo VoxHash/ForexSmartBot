@@ -1191,6 +1191,34 @@ class EnhancedMainWindow(QMainWindow):
                     "Binance Sandbox (Spot Test Network) broker initialized — "
                     "requires BINANCE_API_KEY / BINANCE_API_SECRET from env"
                 )
+            elif broker_mode == "Binance Live":
+                from forexsmartbot.venues.live_guard import live_trading_enabled
+                from forexsmartbot.adapters.brokers.binance_live_broker import (
+                    BinanceLiveBroker,
+                )
+
+                if not live_trading_enabled():
+                    self.append_log(
+                        "Binance Live refused: set FSB_LIVE_TRADING=1 and "
+                        "BINANCE_LIVE_API_KEY / BINANCE_LIVE_API_SECRET "
+                        "(falling back to paper)"
+                    )
+                    QMessageBox.warning(
+                        self,
+                        "Live Trading Opt-In Required",
+                        "Binance Live is opt-in only.\n\n"
+                        "Set FSB_LIVE_TRADING=1 in your local .env along with "
+                        "BINANCE_LIVE_API_KEY / BINANCE_LIVE_API_SECRET.\n"
+                        "Use trade-only keys (no withdraw). Never commit secrets.",
+                    )
+                    self.broker = PaperBroker(10000.0)
+                else:
+                    self.broker = BinanceLiveBroker(risk_engine=self.risk_engine)
+                    self.append_log(
+                        "Binance Live (MAINNET) broker initialized — "
+                        "FSB_LIVE_TRADING=1; kill-switch via FSB_KILL_SWITCH "
+                        "or risk limits"
+                    )
             elif broker_mode == 'MT4':
                 # Check if MT4 settings are configured (from settings or env vars)
                 import os
@@ -1408,6 +1436,16 @@ class EnhancedMainWindow(QMainWindow):
                 self.strategy_monitor.register_strategy(clean_strategy_name)
                 self.append_log(f"Registered {clean_strategy_name} with strategy monitor")
                 
+                # Clear software kill-switch on explicit Start (env FSB_KILL_SWITCH stays forced)
+                if hasattr(self, "risk_engine") and self.risk_engine is not None:
+                    if not self.risk_engine.clear_kill_switch():
+                        QMessageBox.warning(
+                            self,
+                            "Kill-Switch Forced",
+                            "FSB_KILL_SWITCH=1 is set; trading cannot start until it is cleared in the environment.",
+                        )
+                        return
+
                 # Start trading
                 self.is_trading = True
                 self.trading_status_widget.trading_status.setText("Running")
@@ -1438,6 +1476,10 @@ class EnhancedMainWindow(QMainWindow):
                 self.signal_timer.stop()
             if hasattr(self, 'monitor_timer'):
                 self.monitor_timer.stop()
+
+            # Trip kill-switch so live brokers refuse new opens until cleared.
+            if hasattr(self, "risk_engine") and self.risk_engine is not None:
+                self.risk_engine.trip_kill_switch("stop_trading")
             
             self.trading_status_widget.trading_status.setText("Stopped")
             self.trading_status_widget.trading_status.setStyleSheet("color: #E6A23C; font-weight: bold;")
@@ -1448,10 +1490,36 @@ class EnhancedMainWindow(QMainWindow):
             
         except Exception as e:
             self.append_log(f"Stop trading error: {str(e)}")
+
+    def activate_kill_switch(self, reason: str = "manual") -> None:
+        """Halt new orders and flatten via broker when available (live kill-switch)."""
+        try:
+            if hasattr(self, "risk_engine") and self.risk_engine is not None:
+                self.risk_engine.trip_kill_switch(reason)
+            if self.is_trading:
+                self.stop_trading()
+            if self.broker is not None and hasattr(self.broker, "flatten_all"):
+                closed = self.broker.flatten_all()
+                self.append_log(
+                    f"Kill-switch ({reason}): flattened {closed} broker position(s)"
+                )
+            else:
+                self.close_all_positions()
+                self.append_log(f"Kill-switch ({reason}): close_all_positions invoked")
+            self.status_bar.showMessage(f"Kill-switch active: {reason}")
+        except Exception as e:
+            self.append_log(f"Kill-switch error: {str(e)}")
     
     def close_all_positions(self):
         """Close all open positions."""
         try:
+            if self.broker is not None and hasattr(self.broker, "flatten_all"):
+                closed = self.broker.flatten_all()
+                self.positions.clear()
+                self.open_positions_widget.update_positions(self.positions, {})
+                self.append_log(f"Flattened {closed} broker position(s)")
+                return
+
             if not self.positions:
                 self.append_log("No open positions to close")
                 return
@@ -2164,6 +2232,8 @@ class EnhancedMainWindow(QMainWindow):
                 self.trading_status_widget.broker_status.setStyleSheet("color: #26C281; font-weight: bold;")
             elif broker_mode == "Binance Sandbox":
                 self.trading_status_widget.broker_status.setStyleSheet("color: #F0B90B; font-weight: bold;")
+            elif broker_mode == "Binance Live":
+                self.trading_status_widget.broker_status.setStyleSheet("color: #E25555; font-weight: bold;")
             elif broker_mode == "MT4":
                 self.trading_status_widget.broker_status.setStyleSheet("color: #E6A23C; font-weight: bold;")
             elif broker_mode == "REST API":
