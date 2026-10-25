@@ -174,3 +174,42 @@ def test_sweep_and_multi_symbol_numpy_fallback(monkeypatch):
     )
     assert len(multi["per_symbol"]) == 2
     assert multi["portfolio"].shape == (90,)
+
+
+def test_equity_rsi_mean_reversion_runs():
+    close = _close(n=80, seed=61)
+    rsi_vals = ni.rsi(close, 14)
+    equity = ni.equity_rsi_mean_reversion(
+        close, rsi_vals, oversold=30.0, overbought=70.0, initial_balance=10_000.0
+    )
+    assert equity.shape == close.shape
+    assert np.all(np.isfinite(equity))
+    assert equity[0] == pytest.approx(10_000.0)
+
+
+def test_sweep_rsi_mean_reversion_grid():
+    close = _close(n=120, seed=71)
+    rows = ni.sweep_rsi_mean_reversion(
+        close,
+        rsi_periods=[7, 14],
+        oversold_levels=[25.0, 30.0],
+        overbought_levels=[70.0, 75.0],
+        initial_balance=10_000.0,
+    )
+    assert rows.ndim == 2 and rows.shape[1] == 6
+    assert rows.shape[0] == 8
+    assert np.all(rows[:, 1] < rows[:, 2])
+    assert np.all(np.isfinite(rows[:, 3:]))
+
+
+def test_rsi_mean_reversion_numpy_fallback(monkeypatch):
+    monkeypatch.setattr(ni, "_NATIVE", None)
+    monkeypatch.setattr(ni, "_NATIVE_ERR", "forced-off-for-test")
+    close = _close(n=90, seed=81)
+    rows = ni.sweep_rsi_mean_reversion(
+        close, [14], [30.0], [70.0], initial_balance=5_000.0
+    )
+    assert rows.shape == (1, 6)
+    assert np.isfinite(rows[0, 3])
+    equity = ni.equity_rsi_mean_reversion(close, ni.rsi(close, 14), 30.0, 70.0, 5_000.0)
+    assert equity.shape == close.shape

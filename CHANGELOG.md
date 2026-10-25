@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.3.4] - 2026-10-25
+
+### Added
+- **RSI mean-reversion kernel**: `equity_rsi_mean_reversion` + `sweep_rsi_mean_reversion` in `fsb_core` / `native_indicators` (NumPy fallback)
+- **CI native wheels**: `native-wheels` job builds `fsb_core` via maturin and uploads `fsb-core-wheels` artifacts
+- **Docs**: `docs/V3.3.4_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.3.4**; optional `fsb_core` to **0.3.0**
+
 ## [3.3.3] - 2026-10-24
 
 ### Added

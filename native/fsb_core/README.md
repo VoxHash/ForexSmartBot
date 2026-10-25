@@ -2,7 +2,7 @@
 
 Optional Rust (PyO3) extension for ForexSmartBot indicator and equity hot paths.
 
-**0.2.0** adds rayon-backed SMA-crossover parameter sweeps, walk-forward window sweeps, and multi-symbol portfolio aggregation workers.
+**0.3.0** adds RSI mean-reversion equity + parallel parameter sweeps (on top of 0.2.x SMA walk-forward / multi-symbol workers).
 
 ## Build
 

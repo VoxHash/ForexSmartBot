@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.3.x** line (latest **3.3.3**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.3.x** line (latest **3.3.4**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -30,8 +30,9 @@ High-level milestones aligned with the current **3.3.x** line (latest **3.3.3**)
 ## Native performance core
 - [x] **Indicators + equity (fsb_core 0.1.x)**: SMA/ATR/RSI, rayon batch SMA, compact SMA-crossover equity loop (PyO3/maturin; NumPy fallback).
 - [x] **Walk-forward + multi-symbol (3.3.3 / fsb_core 0.2.0)**: parallel SMA parameter grid sweep, walk-forward train/test window sweep, multi-symbol equity aggregation workers (PyQt stays on Python side).
+- [x] **RSI mean-reversion + CI wheels (3.3.4 / fsb_core 0.3.0)**: RSI mean-reversion equity + parallel parameter sweep; maturin `fsb_core` wheels as CI artifacts.
 - Optional build: `cd native/fsb_core && maturin develop --release`.
-- Further candidates (later): additional strategy kernels beyond SMA-crossover; optional maturin wheels in CI artifacts.
+- Further candidates (later): additional strategy kernels (e.g. EMA/MACD); publish `fsb_core` wheels to PyPI alongside the pure-Python package.
 
 ## Future — Android / GrapheneOS
 - [x] **API + scaffold (3.3.0)**: Kotlin client talks to remote-monitor `/api/v1/companion/*`; webhook alerts; no Google deps in scaffold; broker keys stay on desktop.

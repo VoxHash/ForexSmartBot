@@ -32,7 +32,7 @@ Canonical performance and memory guide for ForexSmartBot.
 
 ## Optional Rust native core (`fsb_core`)
 
-Indicator and compact backtest loops are CPU-bound and run often during strategy evaluation. The optional Rust extension under `native/fsb_core` (PyO3 + rayon) offloads SMA/ATR/RSI, batch SMA, SMA-crossover equity curves, **walk-forward / grid parameter sweeps**, and **multi-symbol equity aggregation** so the PyQt process shares the machine more cleanly with other apps.
+Indicator and compact backtest loops are CPU-bound and run often during strategy evaluation. The optional Rust extension under `native/fsb_core` (PyO3 + rayon) offloads SMA/ATR/RSI, batch SMA, SMA-crossover equity curves, **walk-forward / grid parameter sweeps**, **RSI mean-reversion equity/sweeps**, and **multi-symbol equity aggregation** so the PyQt process shares the machine more cleanly with other apps.
 
 ```bash
 pip install maturin

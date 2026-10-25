@@ -438,3 +438,129 @@ def multi_symbol_equity_aggregate(
         portfolio += wi * initial_balance * (1.0 + rets)
     return {"per_symbol": per_symbol, "portfolio": portfolio}
 
+
+def equity_rsi_mean_reversion(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    rsi_values: Sequence[float] | np.ndarray | pd.Series,
+    oversold: float = 30.0,
+    overbought: float = 70.0,
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """RSI mean-reversion equity: long on cross up through oversold, short on cross down through overbought."""
+    c = _as_f64(close)
+    r = _as_f64(rsi_values)
+    if c.shape != r.shape:
+        raise ValueError("close and rsi lengths must match")
+    if not (np.isfinite(oversold) and np.isfinite(overbought)) or oversold >= overbought:
+        raise ValueError("require finite oversold < overbought")
+    if _NATIVE is not None and hasattr(_NATIVE, "equity_rsi_mean_reversion"):
+        return np.asarray(
+            _NATIVE.equity_rsi_mean_reversion(
+                c.tolist(),
+                r.tolist(),
+                float(oversold),
+                float(overbought),
+                float(initial_balance),
+                float(position_fraction),
+            ),
+            dtype=np.float64,
+        )
+    n = c.shape[0]
+    balance = float(initial_balance)
+    side = 0
+    size = 0.0
+    entry = 0.0
+    equity = np.empty(n, dtype=np.float64)
+    for i in range(n):
+        px = float(c[i])
+        if i >= 1:
+            ri, pr = float(r[i]), float(r[i - 1])
+            if not (np.isnan(ri) or np.isnan(pr)):
+                cross_up = pr <= oversold and ri > oversold
+                cross_dn = pr >= overbought and ri < overbought
+                if cross_up and side <= 0:
+                    if side < 0:
+                        balance += -size * (px - entry)
+                    size = (balance * position_fraction) / px
+                    entry = px
+                    side = 1
+                elif cross_dn and side >= 0:
+                    if side > 0:
+                        balance += size * (px - entry)
+                    size = (balance * position_fraction) / px
+                    entry = px
+                    side = -1
+        mtm = side * size * (px - entry) if side else 0.0
+        equity[i] = balance + mtm
+    return equity
+
+
+def _rsi_mean_reversion_metrics(
+    close: np.ndarray,
+    period: int,
+    oversold: float,
+    overbought: float,
+    initial_balance: float,
+    position_fraction: float,
+) -> Tuple[float, float, float]:
+    if close.size == 0 or period < 1 or oversold >= overbought:
+        return float(initial_balance), 0.0, 0.0
+    equity = equity_rsi_mean_reversion(
+        close,
+        rsi(close, period),
+        oversold=oversold,
+        overbought=overbought,
+        initial_balance=initial_balance,
+        position_fraction=position_fraction,
+    )
+    final_eq = float(equity[-1]) if equity.size else float(initial_balance)
+    total_return = (
+        (final_eq - initial_balance) / initial_balance if initial_balance != 0.0 else 0.0
+    )
+    return final_eq, total_return, _max_drawdown(equity)
+
+
+def sweep_rsi_mean_reversion(
+    close: Sequence[float] | np.ndarray | pd.Series,
+    rsi_periods: Sequence[int],
+    oversold_levels: Sequence[float],
+    overbought_levels: Sequence[float],
+    initial_balance: float = 10_000.0,
+    position_fraction: float = 0.1,
+) -> np.ndarray:
+    """Parallel RSI mean-reversion parameter grid sweep.
+
+    Returns rows
+    ``[period, oversold, overbought, final_equity, total_return, max_drawdown]``
+    for every triple with ``period >= 1`` and ``oversold < overbought``.
+    """
+    arr = _as_f64(close)
+    periods = [int(x) for x in rsi_periods]
+    oversolds = [float(x) for x in oversold_levels]
+    overboughts = [float(x) for x in overbought_levels]
+    if _NATIVE is not None and hasattr(_NATIVE, "sweep_rsi_mean_reversion"):
+        rows = _NATIVE.sweep_rsi_mean_reversion(
+            arr.tolist(),
+            periods,
+            oversolds,
+            overboughts,
+            float(initial_balance),
+            float(position_fraction),
+        )
+        return np.asarray(rows, dtype=np.float64).reshape(-1, 6) if rows else np.zeros((0, 6))
+
+    rows: List[List[float]] = []
+    for period in periods:
+        if period < 1:
+            continue
+        for os in oversolds:
+            for ob in overboughts:
+                if not (np.isfinite(os) and np.isfinite(ob)) or os >= ob:
+                    continue
+                final_eq, ret, dd = _rsi_mean_reversion_metrics(
+                    arr, period, os, ob, float(initial_balance), float(position_fraction)
+                )
+                rows.append([float(period), float(os), float(ob), final_eq, ret, dd])
+    return np.asarray(rows, dtype=np.float64).reshape(-1, 6) if rows else np.zeros((0, 6))
+

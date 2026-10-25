@@ -1,9 +1,10 @@
 //! Native CPU-bound helpers for ForexSmartBot.
 //!
 //! Implements rolling indicators (SMA, ATR, RSI), batch SMA via rayon,
-//! SMA-crossover equity, walk-forward parameter sweeps, and multi-symbol
-//! portfolio aggregation so indicator/backtest hot paths can run with lower
-//! overhead than pure pandas while the PyQt UI stays responsive.
+//! SMA-crossover equity, walk-forward parameter sweeps, multi-symbol
+//! portfolio aggregation, and RSI mean-reversion equity/sweeps so
+//! indicator/backtest hot paths can run with lower overhead than pure
+//! pandas while the PyQt UI stays responsive.
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -426,6 +427,170 @@ fn multi_symbol_equity_aggregate(
     Ok((per_symbol, portfolio))
 }
 
+/// RSI mean-reversion equity: long when RSI crosses up through `oversold`,
+/// short when RSI crosses down through `overbought`.
+fn equity_rsi_mean_reversion_slice(
+    close: &[f64],
+    rsi: &[f64],
+    oversold: f64,
+    overbought: f64,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> Vec<f64> {
+    let n = close.len();
+    let mut balance = initial_balance;
+    let mut side: i8 = 0;
+    let mut size = 0.0_f64;
+    let mut entry = 0.0_f64;
+    let mut equity = Vec::with_capacity(n);
+
+    for i in 0..n {
+        let px = close[i];
+        if i >= 1 {
+            let r = rsi[i];
+            let pr = rsi[i - 1];
+            if !r.is_nan() && !pr.is_nan() {
+                let cross_up = pr <= oversold && r > oversold;
+                let cross_dn = pr >= overbought && r < overbought;
+                if cross_up && side <= 0 {
+                    if side < 0 {
+                        balance += -size * (px - entry);
+                    }
+                    size = (balance * position_fraction) / px;
+                    entry = px;
+                    side = 1;
+                } else if cross_dn && side >= 0 {
+                    if side > 0 {
+                        balance += size * (px - entry);
+                    }
+                    size = (balance * position_fraction) / px;
+                    entry = px;
+                    side = -1;
+                }
+            }
+        }
+        let mtm = if side != 0 {
+            side as f64 * size * (px - entry)
+        } else {
+            0.0
+        };
+        equity.push(balance + mtm);
+    }
+    equity
+}
+
+fn rsi_mean_reversion_metrics(
+    close: &[f64],
+    period: usize,
+    oversold: f64,
+    overbought: f64,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> (f64, f64, f64) {
+    if close.is_empty()
+        || period == 0
+        || !(oversold.is_finite() && overbought.is_finite())
+        || oversold >= overbought
+    {
+        return (initial_balance, 0.0, 0.0);
+    }
+    let rsi_vals = rsi_slice(close, period);
+    let equity = equity_rsi_mean_reversion_slice(
+        close,
+        &rsi_vals,
+        oversold,
+        overbought,
+        initial_balance,
+        position_fraction,
+    );
+    let final_eq = *equity.last().unwrap_or(&initial_balance);
+    let total_return = if initial_balance != 0.0 {
+        (final_eq - initial_balance) / initial_balance
+    } else {
+        0.0
+    };
+    (final_eq, total_return, max_drawdown(&equity))
+}
+
+/// Compact RSI mean-reversion equity over aligned close/RSI series.
+#[pyfunction]
+fn equity_rsi_mean_reversion(
+    close: Vec<f64>,
+    rsi: Vec<f64>,
+    oversold: f64,
+    overbought: f64,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<f64>> {
+    let n = close.len();
+    if rsi.len() != n {
+        return Err(PyValueError::new_err("close and rsi lengths must match"));
+    }
+    if !(oversold.is_finite() && overbought.is_finite()) || oversold >= overbought {
+        return Err(PyValueError::new_err(
+            "require finite oversold < overbought",
+        ));
+    }
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(equity_rsi_mean_reversion_slice(
+        &close,
+        &rsi,
+        oversold,
+        overbought,
+        initial_balance,
+        position_fraction,
+    ))
+}
+
+/// Parallel RSI mean-reversion parameter sweep.
+///
+/// Each result row:
+/// `[period, oversold, overbought, final_equity, total_return, max_drawdown]`.
+/// Only triples with `period >= 1` and `oversold < overbought` are evaluated.
+#[pyfunction]
+fn sweep_rsi_mean_reversion(
+    close: Vec<f64>,
+    rsi_periods: Vec<usize>,
+    oversold_levels: Vec<f64>,
+    overbought_levels: Vec<f64>,
+    initial_balance: f64,
+    position_fraction: f64,
+) -> PyResult<Vec<Vec<f64>>> {
+    if close.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut triples: Vec<(usize, f64, f64)> = Vec::new();
+    for &period in &rsi_periods {
+        if period == 0 {
+            continue;
+        }
+        for &os in &oversold_levels {
+            for &ob in &overbought_levels {
+                if os.is_finite() && ob.is_finite() && os < ob {
+                    triples.push((period, os, ob));
+                }
+            }
+        }
+    }
+    let out: Vec<Vec<f64>> = triples
+        .par_iter()
+        .map(|&(period, os, ob)| {
+            let (final_eq, ret, dd) = rsi_mean_reversion_metrics(
+                &close,
+                period,
+                os,
+                ob,
+                initial_balance,
+                position_fraction,
+            );
+            vec![period as f64, os, ob, final_eq, ret, dd]
+        })
+        .collect();
+    Ok(out)
+}
+
 #[pymodule]
 fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -437,5 +602,7 @@ fn fsb_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sweep_sma_crossover, m)?)?;
     m.add_function(wrap_pyfunction!(walk_forward_sma_sweep, m)?)?;
     m.add_function(wrap_pyfunction!(multi_symbol_equity_aggregate, m)?)?;
+    m.add_function(wrap_pyfunction!(equity_rsi_mean_reversion, m)?)?;
+    m.add_function(wrap_pyfunction!(sweep_rsi_mean_reversion, m)?)?;
     Ok(())
 }
