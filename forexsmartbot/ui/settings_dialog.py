@@ -104,6 +104,7 @@ class SettingsDialog(QDialog):
                 "Venue Paper",
                 "Binance Sandbox",
                 "Binance Live",
+                "Kraken Live",
                 "MT4",
                 "REST API",
                 "IB TWS",
@@ -623,6 +624,21 @@ class SettingsDialog(QDialog):
                     )
                     return
                 broker = BinanceLiveBroker(risk_engine=None)
+            elif broker_mode == "Kraken Live":
+                from ..venues.live_guard import live_trading_enabled
+                from ..adapters.brokers.kraken_live_broker import KrakenLiveBroker
+
+                if not live_trading_enabled():
+                    QMessageBox.warning(
+                        self,
+                        "Broker Test",
+                        "Kraken Live is opt-in only.\n"
+                        "Set FSB_LIVE_TRADING=1 and KRAKEN_LIVE_API_KEY / "
+                        "KRAKEN_LIVE_API_SECRET in the local .env (never commit).\n"
+                        "Prefer trade-only keys with withdraw disabled.",
+                    )
+                    return
+                broker = KrakenLiveBroker(risk_engine=None)
             elif broker_mode == 'MT4':
                 from ..adapters.brokers.mt4_broker import MT4Broker
                 host = self.mt4_host_edit.text().strip() or "127.0.0.1"
@@ -688,6 +704,8 @@ class SettingsDialog(QDialog):
                     "Binance Live",
                     "Venue Paper",
                 )
+                else "BTCUSD"
+                if broker_mode == "Kraken Live"
                 else "EURUSD"
             )
             price_text = "N/A"

@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.4.4] - 2026-10-26
+
+### Added
+- **Kraken Live broker (opt-in)**: `KrakenLiveBroker` for Spot mainnet (`api.kraken.com`); requires `FSB_LIVE_TRADING=1` + `KRAKEN_LIVE_API_KEY` / `KRAKEN_LIVE_API_SECRET`; demo/futures hosts refused; Settings mode **Kraken Live**
+- **Kraken HMAC vector test**: published AddOrder signature fixture in `kraken_api_sign` / `tests/test_kraken_live.py`
+- **Docs**: `docs/V3.4.4_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.4.4**
+
 ## [3.4.3] - 2026-10-25
 
 ### Added

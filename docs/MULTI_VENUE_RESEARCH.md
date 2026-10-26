@@ -23,9 +23,11 @@ Live probes: `forexsmartbot.venues.probes.probe_all_public()`.
 - `VenuePaperBroker` (3.4.2) — paper fills at live public prices (binance|kraken feed); orders/positions/reconnect; no keys.
 - `BinanceSandboxBroker` (3.4.2) — HMAC signed Spot **Test Network** orders; mainnet refused; keys from env only.
 - `BinanceLiveBroker` (3.4.3) — HMAC Spot **mainnet** orders; requires `FSB_LIVE_TRADING=1` + `BINANCE_LIVE_API_*`; testnet refused; kill-switch via `RiskEngine` / `FSB_KILL_SWITCH`.
+- `KrakenLiveBroker` (3.4.4) — HMAC-SHA512 Spot **mainnet** private REST; requires `FSB_LIVE_TRADING=1` + `KRAKEN_LIVE_API_*`; demo/futures hosts refused; same kill-switch.
 
-Select **Venue Paper**, **Binance Sandbox**, **Binance Live**, **Kraken Public**, or
-**Binance Public** in Settings → Broker Mode. Never set `FSB_LIVE_TRADING` in CI.
+Select **Venue Paper**, **Binance Sandbox**, **Binance Live**, **Kraken Live**,
+**Kraken Public**, or **Binance Public** in Settings → Broker Mode. Never set
+`FSB_LIVE_TRADING` in CI.
 
 ## Opsec
 

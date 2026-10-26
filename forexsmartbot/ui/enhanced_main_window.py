@@ -1219,6 +1219,34 @@ class EnhancedMainWindow(QMainWindow):
                         "FSB_LIVE_TRADING=1; kill-switch via FSB_KILL_SWITCH "
                         "or risk limits"
                     )
+            elif broker_mode == "Kraken Live":
+                from forexsmartbot.venues.live_guard import live_trading_enabled
+                from forexsmartbot.adapters.brokers.kraken_live_broker import (
+                    KrakenLiveBroker,
+                )
+
+                if not live_trading_enabled():
+                    self.append_log(
+                        "Kraken Live refused: set FSB_LIVE_TRADING=1 and "
+                        "KRAKEN_LIVE_API_KEY / KRAKEN_LIVE_API_SECRET "
+                        "(falling back to paper)"
+                    )
+                    QMessageBox.warning(
+                        self,
+                        "Live Trading Opt-In Required",
+                        "Kraken Live is opt-in only.\n\n"
+                        "Set FSB_LIVE_TRADING=1 in your local .env along with "
+                        "KRAKEN_LIVE_API_KEY / KRAKEN_LIVE_API_SECRET.\n"
+                        "Use trade-only keys (no withdraw). Never commit secrets.",
+                    )
+                    self.broker = PaperBroker(10000.0)
+                else:
+                    self.broker = KrakenLiveBroker(risk_engine=self.risk_engine)
+                    self.append_log(
+                        "Kraken Live (MAINNET) broker initialized — "
+                        "FSB_LIVE_TRADING=1; kill-switch via FSB_KILL_SWITCH "
+                        "or risk limits"
+                    )
             elif broker_mode == 'MT4':
                 # Check if MT4 settings are configured (from settings or env vars)
                 import os
@@ -2233,6 +2261,8 @@ class EnhancedMainWindow(QMainWindow):
             elif broker_mode == "Binance Sandbox":
                 self.trading_status_widget.broker_status.setStyleSheet("color: #F0B90B; font-weight: bold;")
             elif broker_mode == "Binance Live":
+                self.trading_status_widget.broker_status.setStyleSheet("color: #E25555; font-weight: bold;")
+            elif broker_mode == "Kraken Live":
                 self.trading_status_widget.broker_status.setStyleSheet("color: #E25555; font-weight: bold;")
             elif broker_mode == "MT4":
                 self.trading_status_widget.broker_status.setStyleSheet("color: #E6A23C; font-weight: bold;")
