@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.4.x** line (latest **3.4.4**; prior **3.4.3** / **3.4.2** / **3.4.1** / **3.4.0**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.4.x** line (latest **3.4.5**; prior **3.4.4** / **3.4.3** / **3.4.2** / **3.4.1** / **3.4.0**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -49,19 +49,21 @@ High-level milestones aligned with the current **3.4.x** line (latest **3.4.4**;
 - Remaining: published F-Droid / Play store listing (metadata draft ready; submit outside this repo).
 
 ## Future — Multi-venue CEX / DEX (commodities + FX / crypto pairs)
-Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Research + public adapters in 3.4.1; paper/sandbox E2E in 3.4.2; Binance live in 3.4.3; Kraken live in 3.4.4**.
+Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Research + public adapters in 3.4.1; paper/sandbox E2E in 3.4.2; Binance live in 3.4.3; Kraken live in 3.4.4; 1inch DEX dry-run execution in 3.4.5**.
 
 Phased delivery (realistic order):
 - [x] **Research (3.4.1)**: Map symbol/asset coverage (FX pairs, commodities, spot crypto) and venue capabilities for **centralized exchanges/brokers** (**Binance**, **Kraken**) and **DEX aggregators** (**1inch**). Live public probes + `docs/MULTI_VENUE_RESEARCH.md`; prefer testnet/sandbox docs first.
 - [x] **Adapters (3.4.1, public/read-only)**: Thin `KrakenPublicBroker` + `BinancePublicBroker` behind Settings broker mode / env; PyQt stays on the host; no keys in the mobile companion. Authenticated trade adapters still open.
 - [x] **Paper / sandbox (3.4.2)**: `VenuePaperBroker` (live public MD + local fills) and `BinanceSandboxBroker` (Spot Test Network HMAC orders/positions/reconnect); Settings modes; mainnet URLs refused; `tests/test_paper_sandbox.py`.
 - [x] **Live (opt-in) (3.4.3)**: `BinanceLiveBroker` on `api.binance.com` only when `FSB_LIVE_TRADING=1`; dedicated `BINANCE_LIVE_API_*` keys; testnet refused; kill-switch via `RiskEngine` + `FSB_KILL_SWITCH`; `tests/test_binance_live.py` (mocked — no CI mainnet orders).
-- [x] **Kraken Live (opt-in) (3.4.4)**: `KrakenLiveBroker` on `api.kraken.com` Spot private REST when `FSB_LIVE_TRADING=1`; dedicated `KRAKEN_LIVE_API_*` keys; demo/futures hosts refused; same kill-switch; `tests/test_kraken_live.py` (mocked — no CI mainnet orders). Remaining: DEX aggregator execution (1inch).
+- [x] **Kraken Live (opt-in) (3.4.4)**: `KrakenLiveBroker` on `api.kraken.com` Spot private REST when `FSB_LIVE_TRADING=1`; dedicated `KRAKEN_LIVE_API_*` keys; demo/futures hosts refused; same kill-switch; `tests/test_kraken_live.py` (mocked — no CI mainnet orders).
+- [x] **DEX aggregator execution (3.4.5)**: `OneInchDexBroker` Classic Swap `/quote` + `/swap` (v6.1); dry-run local fills by default; broadcast only with `FSB_LIVE_TRADING=1` + `FSB_DEX_BROADCAST=1` + injected `broadcast_fn` (no default private-key signer); Settings **1inch DEX**; `tests/test_oneinch_dex.py` (mocked — no CI mainnet spends).
 
 Opsec (required for this milestone):
 - [x] API keys and secrets never committed; `.env` gitignored; `.env.example` placeholders only (`KRAKEN_*` / `BINANCE_*` / `ONEINCH_*`)
 - [x] Secrets not logged — `forexsmartbot.venues.secrets` redaction helpers for mappings / bearer text
 - [x] Document required env vars without real values; recommend IP allowlists / key rotation per venue (`docs/MULTI_VENUE_RESEARCH.md`)
+- [x] DEX broadcast double opt-in (`FSB_DEX_BROADCAST`); wallet private keys never read from env by the default broker path
 
 Related existing work to reuse: `docs/EXTENDING_BROKERS.md`, paper broker, REST broker scaffold, remote-monitor auth hardening.
 

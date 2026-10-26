@@ -105,6 +105,7 @@ class SettingsDialog(QDialog):
                 "Binance Sandbox",
                 "Binance Live",
                 "Kraken Live",
+                "1inch DEX",
                 "MT4",
                 "REST API",
                 "IB TWS",
@@ -639,6 +640,10 @@ class SettingsDialog(QDialog):
                     )
                     return
                 broker = KrakenLiveBroker(risk_engine=None)
+            elif broker_mode == "1inch DEX":
+                from ..adapters.brokers.oneinch_dex_broker import OneInchDexBroker
+
+                broker = OneInchDexBroker(force_dry_run=True)
             elif broker_mode == 'MT4':
                 from ..adapters.brokers.mt4_broker import MT4Broker
                 host = self.mt4_host_edit.text().strip() or "127.0.0.1"
@@ -704,6 +709,8 @@ class SettingsDialog(QDialog):
                     "Binance Live",
                     "Venue Paper",
                 )
+                else "ETH/USDC"
+                if broker_mode == "1inch DEX"
                 else "BTCUSD"
                 if broker_mode == "Kraken Live"
                 else "EURUSD"

@@ -1247,6 +1247,35 @@ class EnhancedMainWindow(QMainWindow):
                         "FSB_LIVE_TRADING=1; kill-switch via FSB_KILL_SWITCH "
                         "or risk limits"
                     )
+            elif broker_mode == "1inch DEX":
+                from forexsmartbot.adapters.brokers.oneinch_dex_broker import (
+                    OneInchDexBroker,
+                )
+                from forexsmartbot.venues.live_guard import (
+                    dex_broadcast_enabled,
+                    live_trading_enabled,
+                )
+
+                # Default dry-run (quote + swap calldata + local fill). Broadcast
+                # only when both live + dex-broadcast flags are set.
+                dry = not (live_trading_enabled() and dex_broadcast_enabled())
+                self.broker = OneInchDexBroker(
+                    risk_engine=self.risk_engine,
+                    force_dry_run=dry,
+                )
+                if dry:
+                    self.append_log(
+                        "1inch DEX broker initialized (dry-run) — "
+                        "ONEINCH_API_KEY required; set FSB_LIVE_TRADING=1 and "
+                        "FSB_DEX_BROADCAST=1 only to arm on-chain broadcast "
+                        "(requires injected broadcast_fn; never in CI)"
+                    )
+                else:
+                    self.append_log(
+                        "1inch DEX broker initialized (BROADCAST-ARMED) — "
+                        "kill-switch via FSB_KILL_SWITCH; no default private-key "
+                        "signer (inject broadcast_fn)"
+                    )
             elif broker_mode == 'MT4':
                 # Check if MT4 settings are configured (from settings or env vars)
                 import os
@@ -2264,6 +2293,8 @@ class EnhancedMainWindow(QMainWindow):
                 self.trading_status_widget.broker_status.setStyleSheet("color: #E25555; font-weight: bold;")
             elif broker_mode == "Kraken Live":
                 self.trading_status_widget.broker_status.setStyleSheet("color: #E25555; font-weight: bold;")
+            elif broker_mode == "1inch DEX":
+                self.trading_status_widget.broker_status.setStyleSheet("color: #26C281; font-weight: bold;")
             elif broker_mode == "MT4":
                 self.trading_status_widget.broker_status.setStyleSheet("color: #E6A23C; font-weight: bold;")
             elif broker_mode == "REST API":

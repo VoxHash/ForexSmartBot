@@ -24,10 +24,11 @@ Live probes: `forexsmartbot.venues.probes.probe_all_public()`.
 - `BinanceSandboxBroker` (3.4.2) — HMAC signed Spot **Test Network** orders; mainnet refused; keys from env only.
 - `BinanceLiveBroker` (3.4.3) — HMAC Spot **mainnet** orders; requires `FSB_LIVE_TRADING=1` + `BINANCE_LIVE_API_*`; testnet refused; kill-switch via `RiskEngine` / `FSB_KILL_SWITCH`.
 - `KrakenLiveBroker` (3.4.4) — HMAC-SHA512 Spot **mainnet** private REST; requires `FSB_LIVE_TRADING=1` + `KRAKEN_LIVE_API_*`; demo/futures hosts refused; same kill-switch.
+- `OneInchDexBroker` (3.4.5) — Classic Swap `/quote` + `/swap` (v6.1); **dry-run** local fills by default (`ONEINCH_API_KEY`); broadcast only with `FSB_LIVE_TRADING=1` + `FSB_DEX_BROADCAST=1` + injected `broadcast_fn` (no default private-key signer).
 
 Select **Venue Paper**, **Binance Sandbox**, **Binance Live**, **Kraken Live**,
-**Kraken Public**, or **Binance Public** in Settings → Broker Mode. Never set
-`FSB_LIVE_TRADING` in CI.
+**1inch DEX**, **Kraken Public**, or **Binance Public** in Settings → Broker Mode.
+Never set `FSB_LIVE_TRADING` or `FSB_DEX_BROADCAST` in CI.
 
 ## Opsec
 

@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 
 
+## [3.4.5] - 2026-10-26
+
+### Added
+- **1inch DEX broker**: `OneInchDexBroker` Classic Swap quote + swap calldata (`swap/v6.1`); dry-run local fills by default; Settings mode **1inch DEX**
+- **DEX broadcast guard**: `FSB_DEX_BROADCAST` + `live_guard.dex_broadcast_enabled`; on-chain send only with live+broadcast flags and injected `broadcast_fn` (no default private-key signer)
+- **Tests**: `tests/test_oneinch_dex.py` (mocked quote/swap/kill-switch — no mainnet spends)
+- **Docs**: `docs/V3.4.5_FEATURES.md`
+
+### Changed
+- **Version**: Package/app bumped to **3.4.5**
+
 ## [3.4.4] - 2026-10-26
 
 ### Added

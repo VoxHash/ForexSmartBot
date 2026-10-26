@@ -38,3 +38,15 @@ def kill_switch_forced(env: Optional[dict] = None) -> bool:
     source = env if env is not None else os.environ
     raw = str(source.get("FSB_KILL_SWITCH", "")).strip().lower()
     return raw in _TRUTHY
+
+
+def dex_broadcast_enabled(env: Optional[dict] = None) -> bool:
+    """Return True only when the operator opted into on-chain DEX broadcast.
+
+    Requires an explicit ``FSB_DEX_BROADCAST`` truthy value. Pair with
+    ``FSB_LIVE_TRADING`` — 1inch dry-run quotes/swaps work without this flag;
+    broadcasting unsigned calldata does not.
+    """
+    source = env if env is not None else os.environ
+    raw = str(source.get("FSB_DEX_BROADCAST", "")).strip().lower()
+    return raw in _TRUTHY

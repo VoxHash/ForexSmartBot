@@ -125,6 +125,20 @@ live = KrakenLiveBroker(risk_engine=risk)  # refuses without FSB_LIVE_TRADING
 # live.connect()  # real mainnet — operator only
 ```
 
+### 1inch DEX (3.4.5, dry-run by default)
+
+```python
+# ONEINCH_API_KEY from local .env only (Bearer). Never set FSB_DEX_BROADCAST in CI.
+from forexsmartbot.adapters.brokers import OneInchDexBroker
+
+dex = OneInchDexBroker(force_dry_run=True)  # quote + swap calldata + local fill
+# dex.connect()
+# dex.submit_order("ETH/USDC", -1, 0.01)  # builds /swap tx; no RPC broadcast
+
+# Broadcast-armed (operator only): FSB_LIVE_TRADING=1 + FSB_DEX_BROADCAST=1
+# and pass broadcast_fn=callable that returns a tx hash — no default key signer.
+```
+
 ### MT4 Broker
 
 The MT4 broker connects to MetaTrader 4 via ZeroMQ:

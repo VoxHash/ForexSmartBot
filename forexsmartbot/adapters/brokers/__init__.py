@@ -10,6 +10,7 @@ from .venue_paper_broker import VenuePaperBroker
 from .binance_sandbox_broker import BinanceSandboxBroker
 from .binance_live_broker import BinanceLiveBroker
 from .kraken_live_broker import KrakenLiveBroker
+from .oneinch_dex_broker import OneInchDexBroker
 
 __all__ = [
     "PaperBroker",
@@ -22,4 +23,5 @@ __all__ = [
     "BinanceSandboxBroker",
     "BinanceLiveBroker",
     "KrakenLiveBroker",
+    "OneInchDexBroker",
 ]
