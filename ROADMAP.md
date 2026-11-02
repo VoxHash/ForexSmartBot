@@ -49,6 +49,7 @@ High-level milestones aligned with the current **3.4.x** line (latest **3.4.5**;
 - Remaining: published F-Droid / Play store listing (metadata draft ready; submit outside this repo).
 
 ## Future — Multi-venue CEX / DEX (commodities + FX / crypto pairs)
+**Brand note:** product name stays **ForexSmartBot** (PyPI / GitHub / `import forexsmartbot`); marketing copy positions it as a multi-venue desk (FX + spot crypto + DEX), not forex-only.
 Desktop bot stays the execution host (same `IBroker` / adapter pattern as Paper, MT4, IB TWS, REST). **Research + public adapters in 3.4.1; paper/sandbox E2E in 3.4.2; Binance live in 3.4.3; Kraken live in 3.4.4; 1inch DEX dry-run execution in 3.4.5**.
 
 Phased delivery (realistic order):
@@ -69,7 +70,7 @@ Related existing work to reuse: `docs/EXTENDING_BROKERS.md`, paper broker, REST 
 
 ## Future
 - [ ] Social / copy trading and marketplace growth
-- [ ] Multi-asset support (equities, crypto) where data providers allow — partly overlaps multi-venue CEX/DEX above
+- [ ] Broader multi-asset coverage (equities; deeper commodities) where data providers allow — spot crypto / CEX / DEX already shipped in 3.4.x under the ForexSmartBot name
 - [ ] Enterprise and compliance tooling (audit logs, role-based access)
 
 For historical goals, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and version feature docs under `docs/V3.*_FEATURES.md`.

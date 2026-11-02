@@ -7,7 +7,7 @@
 
 
 
-> Professional-grade desktop application for automated forex trading with advanced risk management, multiple trading strategies, and real-time portfolio monitoring.
+> ForexSmartBot — multi-venue desktop trading desk for forex, spot crypto (Binance / Kraken), and DEX swaps (1inch), with risk controls, strategy plugins, and real-time portfolio monitoring.
 
 
 
