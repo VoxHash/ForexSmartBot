@@ -1280,14 +1280,30 @@ class EnhancedMainWindow(QMainWindow):
                     dex_broadcast_enabled,
                     live_trading_enabled,
                 )
+                from forexsmartbot.wallet import (
+                    get_wallet_manager,
+                    make_broadcast_fn,
+                    wallet_address_for_dex,
+                )
 
                 # Default dry-run (quote + swap calldata + local fill). Broadcast
                 # only when both live + dex-broadcast flags are set.
                 dry = not (live_trading_enabled() and dex_broadcast_enabled())
+                session_addr = wallet_address_for_dex()
+                # Prefer connected wallet public address; else env / settings.
+                wallet_addr = session_addr or self.settings_manager.get(
+                    "wallet_address"
+                )
                 self.broker = OneInchDexBroker(
                     risk_engine=self.risk_engine,
                     force_dry_run=dry,
+                    wallet_address=wallet_addr or None,
+                    # Never force live send: default broadcast_fn refuses without
+                    # an external signer_fn (wallet session ≠ private key).
+                    broadcast_fn=None if dry else make_broadcast_fn(),
                 )
+                wm = get_wallet_manager()
+                wstat = wm.status_dict()
                 if dry:
                     self.append_log(
                         "1inch DEX broker initialized (dry-run) — "
@@ -1300,6 +1316,16 @@ class EnhancedMainWindow(QMainWindow):
                         "1inch DEX broker initialized (BROADCAST-ARMED) — "
                         "kill-switch via FSB_KILL_SWITCH; no default private-key "
                         "signer (inject broadcast_fn)"
+                    )
+                if wstat.get("connected"):
+                    self.append_log(
+                        f"Wallet session: {wstat.get('provider')} "
+                        f"{wstat.get('short_address')} chain={wstat.get('chain')}"
+                    )
+                else:
+                    self.append_log(
+                        "No wallet session — connect via Settings → Wallet "
+                        "(public address only) for swap `from`"
                     )
             elif broker_mode == 'MT4':
                 # Check if MT4 settings are configured (from settings or env vars)

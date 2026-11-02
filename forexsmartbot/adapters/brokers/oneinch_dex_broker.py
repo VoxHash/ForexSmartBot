@@ -163,7 +163,7 @@ class OneInchDexBroker(IBroker):
 
         self._session = requests.Session()
         headers = {
-            "User-Agent": "ForexSmartBot/3.4.5",
+            "User-Agent": "ForexSmartBot/3.4.6",
             "Accept": "application/json",
         }
         if self._api_key:
@@ -321,7 +321,7 @@ class OneInchDexBroker(IBroker):
             pass
         self._session = requests.Session()
         headers = {
-            "User-Agent": "ForexSmartBot/3.4.5",
+            "User-Agent": "ForexSmartBot/3.4.6",
             "Accept": "application/json",
         }
         if self._api_key:

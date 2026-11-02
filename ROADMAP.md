@@ -1,6 +1,6 @@
 # Roadmap — ForexSmartBot
 
-High-level milestones aligned with the current **3.4.x** line (latest **3.4.5**; prior **3.4.4** / **3.4.3** / **3.4.2** / **3.4.1** / **3.4.0**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
+High-level milestones aligned with the current **3.4.x** line (latest **3.4.6**; prior **3.4.5** / **3.4.4** / **3.4.3** / **3.4.2** / **3.4.1** / **3.4.0**). See [CHANGELOG.md](CHANGELOG.md) for shipped work.
 
 ## Completed (3.2.0)
 - Interactive Brokers TWS broker adapter and settings connection test
@@ -88,19 +88,42 @@ Opsec (required for this milestone):
 
 Related: multi-venue CEX/DEX section above; wallet-connect section below for e2e signing where Polymarket requires a wallet.
 
-## Future — Crypto wallet connect (e2e)
-Enable users to **connect crypto wallets** properly so Polymarket / DEX / rewards flows can complete end-to-end inside ForexSmartBot without shipping private keys in the repo.
+## Crypto wallet connect (e2e) — 3.4.6 slice + follow-ons
+Enable users to **connect crypto wallets** so Polymarket / DEX / rewards flows can complete end-to-end inside ForexSmartBot without shipping private keys in the repo.
 
-Phased delivery:
-- [ ] **Research**: Prefer **WalletConnect** and/or **browser-extension** patterns (injected provider); document supported chains, session lifecycle, disconnect, and how desktop PyQt hosts a connect UI (deep link / local bridge / embedded webview — pick one after research).
-- [ ] **Adapters**: Session connect/disconnect + address display; sign-message / typed-data hooks behind a narrow interface; **no private-key import UI and no default env-based signer** (align with 3.4.5 DEX `broadcast_fn` injection).
-- [ ] **Paper / sandbox**: Connect against test/demo WalletConnect project or mock provider; exercise quote → user-approve → simulated broadcast without mainnet value.
-- [ ] **Live (opt-in)**: Real WalletConnect / extension sessions only when live flags are set; user confirms each spend; kill-switch still blocks new orders; never log seed phrases or raw private keys.
+**Desktop constraint (research → decision):** PyQt has no `window.ethereum` injection. **Ship path = WalletConnect v2 URI + MetaMask deep link / QR** for EVM; **Phantom Solana universal-link scaffold** for Solana. Browser-extension EIP-1193 remains a later optional bridge (embedded webview), not required for the first slice.
 
-Opsec (required):
-- [ ] Private keys / mnemonics never stored in git, logs, or default config files
-- [ ] Prefer hardware-wallet / extension / WalletConnect remote signing over in-process key material
-- [ ] Document phishing risks (fake WC URIs) and recommend verifying dApp / project IDs from official docs
+### Chains (registry in `forexsmartbot.wallet.chains`)
+**EVM family** (numeric chain IDs — GA unless noted):
+- [x] Ethereum Mainnet (`1`)
+- [x] Base (`8453`)
+- [x] OP Mainnet (`10`)
+- [x] Arbitrum One (`42161`) — MetaMask/WC; Phantom marks Arbitrum unsupported for txs
+- [x] Polygon (`137`)
+- [x] BNB Smart Chain (`56`), Avalanche C-Chain (`43114`)
+- [x] **Robinhood Chain** (`4663`) — official name; permissionless Ethereum-compatible L2 on Arbitrum technology; public mainnet (Robinhood docs / 2026-07-01 newsroom). Testnet `46630`. User-facing copy must say **Robinhood Chain** (not informal shorthands).
+- [x] Arc (`5042`) — listed in Phantom injected EVM support
+- [x] Testnets: Ethereum Sepolia (`11155111`), Base Sepolia (`84532`), Robinhood Chain Testnet
+
+**Solana family** (clusters — no EVM chain id):
+- [x] `mainnet-beta`, `devnet`, `testnet`
+
+### Wallets — phased
+- [x] **Research (3.4.6)**: MetaMask EIP-1193 (extension) vs WalletConnect URI for PyQt; Phantom deeplink Solana-only + injected EVM for extension; document session lifecycle + phishing warning on WC URIs.
+- [x] **Adapters (3.4.6 first slice)**: `WalletManager` + MetaMask WC URI begin/complete + address-attach; Phantom connect URL builder + session attach; Settings → **Wallet** panel (connect/disconnect, address, chain); wire public address into `OneInchDexBroker` (still dry-run by default; `make_broadcast_fn` refuses without injected signer).
+- [x] **Mock / paper (3.4.6)**: `MockWalletConnector` + unit tests (`tests/test_wallet_connect.py`) — no mainnet spends.
+- [ ] **WalletConnect relay settle**: Full Reown/WC v2 session settlement over `wss://relay.walletconnect.com` with `WALLETCONNECT_PROJECT_ID` (auto-fill address from approved session; today user completes with public address after approve).
+- [ ] **MetaMask**: Live `eth_sendTransaction` / `personal_sign` / EIP-712 via settled WC session (still no in-app keys).
+- [ ] **Phantom**: Decrypt deeplink redirect (NaCl + base58); `signTransaction` / `signAndSendTransaction` Solana path; optional EVM via extension bridge.
+- [ ] **Paper / sandbox E2E**: Quote → user-approve in wallet → simulated broadcast without mainnet value (WC test project).
+- [ ] **Live (opt-in)**: Real WC / extension sessions only when `FSB_LIVE_TRADING` + `FSB_DEX_BROADCAST` (and future spend-confirm UI); kill-switch blocks new orders; never log seed phrases or raw private keys.
+
+### Opsec (required)
+- [x] Private keys / mnemonics never accepted in connect UI; seed-like input rejected; session is process RAM (+ optional public address in settings) — **no private keys in app storage by default**
+- [x] Prefer hardware-wallet / extension / WalletConnect remote signing over in-process key material (`broadcast_fn` injection only)
+- [x] Document phishing risks (fake WC URIs) in connect offer instructions / WalletConnect helper
+- [ ] Hardware wallet (Ledger/Trezor) explicit path
+- [ ] Optional encrypted session export — off by default; never store seeds
 
 ## Future — Strategy marketplace via GitHub PR (remote packs)
 Update the **marketplace** so contributors **add strategies via GitHub PR**; after merge, other users can **download strategies without updating** their local installed ForexSmartBot app version.

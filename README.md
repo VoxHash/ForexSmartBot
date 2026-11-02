@@ -18,6 +18,7 @@
 - **Paper / sandbox venues (3.4.2)**: Venue Paper (live public prices + local fills) and Binance Spot Test Network sandbox orders
 - **Live opt-in (3.4.3–3.4.4)**: Binance + Kraken Spot mainnet via `FSB_LIVE_TRADING=1` + dedicated live keys; kill-switch reuses RiskEngine
 - **1inch DEX (3.4.5)**: Classic Swap quote + swap path with dry-run fills by default; on-chain broadcast double opt-in (`FSB_DEX_BROADCAST`)
+- **Wallet connect (3.4.6)**: MetaMask (WalletConnect URI / deep link) + Phantom Solana scaffold; chain registry (Ethereum, Base, Solana, Robinhood Chain, …); Settings → Wallet; session public address only
 - **Multi-Strategy Trading**: 17+ built-in strategies including 7 ML-based approaches
 - **Real-time Monitoring**: Live portfolio tracking with P&L updates and health checks
 - **Risk Management**: Advanced risk controls with Kelly Criterion and drawdown protection
@@ -151,6 +152,7 @@ Full configuration reference: [docs/Configuration-Guide.md](docs/Configuration-G
 - **v3.4.3 Live opt-in**: [Binance Live + kill-switch](docs/V3.4.3_FEATURES.md)
 - **v3.4.4 Kraken Live**: [Kraken Live opt-in](docs/V3.4.4_FEATURES.md)
 - **v3.4.5 1inch DEX**: [DEX aggregator dry-run execution](docs/V3.4.5_FEATURES.md)
+- **v3.4.6 Wallet connect**: [MetaMask / Phantom / chains](docs/V3.4.6_FEATURES.md)
 - **Data Providers**: [Provider Setup Guide](docs/DATA_PROVIDERS_SETUP.md)
 - **Examples**: [Example Scripts](examples/)
 - **FAQ**: [Frequently Asked Questions](docs/FAQ.md)

@@ -3,9 +3,12 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTabWidget,
                              QWidget, QLabel, QLineEdit, QSpinBox, QDoubleSpinBox,
                              QComboBox, QCheckBox, QPushButton, QGroupBox,
-                             QFormLayout, QMessageBox)
+                             QFormLayout, QMessageBox, QPlainTextEdit)
 from PyQt6.QtCore import Qt
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+
+from forexsmartbot.wallet import get_wallet_manager
+from forexsmartbot.wallet.models import ConnectOffer
 
 
 class SettingsDialog(QDialog):
@@ -16,12 +19,15 @@ class SettingsDialog(QDialog):
         self.settings_manager = settings_manager
         self.language_manager = language_manager
         self.on_settings_saved = on_settings_saved  # Callback function
+        self._wallet = get_wallet_manager()
+        self._pending_offer: Optional[ConnectOffer] = None
         self.setWindowTitle(self.tr("settings", "Settings"))
         self.setModal(True)
         self.resize(600, 500)
         
         self.setup_ui()
         self.load_settings()
+        self._refresh_wallet_status()
     
     def tr(self, key, default=None):
         """Get translated text."""
@@ -56,6 +62,10 @@ class SettingsDialog(QDialog):
         # UI tab
         ui_tab = self.create_ui_tab()
         tab_widget.addTab(ui_tab, self.tr("ui", "UI"))
+
+        # Wallet tab (MetaMask / Phantom / WalletConnect URI)
+        wallet_tab = self.create_wallet_tab()
+        tab_widget.addTab(wallet_tab, self.tr("wallet", "Wallet"))
         
         # Buttons
         button_layout = QHBoxLayout()
@@ -367,6 +377,157 @@ class SettingsDialog(QDialog):
         layout.addRow(notification_group)
         
         return widget
+
+    def create_wallet_tab(self) -> QWidget:
+        """Crypto wallet connect: MetaMask (WC URI) + Phantom scaffold."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        info = QLabel(
+            "Connect a wallet for DEX / Polymarket flows. "
+            "Sessions keep the public address in memory only — "
+            "never paste seed phrases or private keys. "
+            "On-chain broadcast stays opt-in via FSB_LIVE_TRADING + "
+            "FSB_DEX_BROADCAST + injected broadcast_fn."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("color: #888; font-size: 11px;")
+        layout.addWidget(info)
+
+        form = QFormLayout()
+        self.wallet_provider_combo = QComboBox()
+        self.wallet_provider_combo.addItems(["metamask", "phantom"])
+        form.addRow("Provider:", self.wallet_provider_combo)
+
+        self.wallet_chain_combo = QComboBox()
+        for chain in self._wallet.chains(include_testnets=True):
+            label = f"{chain.name} ({chain.id})"
+            self.wallet_chain_combo.addItem(label, chain.id)
+        form.addRow("Chain:", self.wallet_chain_combo)
+
+        self.wallet_address_edit = QLineEdit()
+        self.wallet_address_edit.setPlaceholderText(
+            "Public address (0x… EVM or Solana base58) — no private keys"
+        )
+        form.addRow("Address:", self.wallet_address_edit)
+
+        layout.addLayout(form)
+
+        self.wallet_status_label = QLabel("Status: disconnected")
+        self.wallet_status_label.setWordWrap(True)
+        layout.addWidget(self.wallet_status_label)
+
+        self.wallet_uri_view = QPlainTextEdit()
+        self.wallet_uri_view.setReadOnly(True)
+        self.wallet_uri_view.setPlaceholderText(
+            "WalletConnect URI / Phantom deeplink appears here after Begin connect"
+        )
+        self.wallet_uri_view.setMaximumHeight(100)
+        layout.addWidget(self.wallet_uri_view)
+
+        row = QHBoxLayout()
+        begin_btn = QPushButton("Begin connect (URI / deeplink)")
+        begin_btn.clicked.connect(self._wallet_begin_connect)
+        attach_btn = QPushButton("Attach address (session)")
+        attach_btn.clicked.connect(self._wallet_attach_address)
+        complete_btn = QPushButton("Complete connect")
+        complete_btn.clicked.connect(self._wallet_complete_connect)
+        disconnect_btn = QPushButton("Disconnect")
+        disconnect_btn.clicked.connect(self._wallet_disconnect)
+        row.addWidget(begin_btn)
+        row.addWidget(attach_btn)
+        row.addWidget(complete_btn)
+        row.addWidget(disconnect_btn)
+        layout.addLayout(row)
+        layout.addStretch()
+        return widget
+
+    def _wallet_selected_chain_key(self) -> str:
+        data = self.wallet_chain_combo.currentData()
+        return data if data else "ethereum"
+
+    def _refresh_wallet_status(self) -> None:
+        if not hasattr(self, "wallet_status_label"):
+            return
+        st = self._wallet.status_dict()
+        if not st.get("connected"):
+            self.wallet_status_label.setText("Status: disconnected")
+            return
+        self.wallet_status_label.setText(
+            f"Status: connected · {st.get('provider')} · "
+            f"{st.get('short_address')} · chain={st.get('chain')} "
+            f"(id={st.get('chain_id') or st.get('solana_cluster')})"
+        )
+        if st.get("address") and not self.wallet_address_edit.text().strip():
+            self.wallet_address_edit.setText(st["address"])
+
+    def _wallet_begin_connect(self) -> None:
+        provider = self.wallet_provider_combo.currentText()
+        chain_key = self._wallet_selected_chain_key()
+        try:
+            offer = self._wallet.begin(provider, chain_key=chain_key)
+            self._pending_offer = offer
+            lines = []
+            if offer.uri:
+                lines.append(offer.uri)
+            if offer.deep_link and offer.deep_link != offer.uri:
+                lines.append(f"Deep link: {offer.deep_link}")
+            lines.append("")
+            lines.append(offer.instructions)
+            self.wallet_uri_view.setPlainText("\n".join(lines))
+            self._refresh_wallet_status()
+        except Exception as exc:
+            QMessageBox.warning(self, "Wallet", str(exc))
+
+    def _wallet_attach_address(self) -> None:
+        provider = self.wallet_provider_combo.currentText()
+        chain_key = self._wallet_selected_chain_key()
+        address = self.wallet_address_edit.text().strip()
+        try:
+            self._wallet.attach_address(provider, address, chain_key=chain_key)
+            if self.settings_manager:
+                self.settings_manager.set("wallet_provider", provider)
+                self.settings_manager.set("wallet_chain", chain_key)
+                # Public address only — never store keys.
+                self.settings_manager.set("wallet_address", address)
+            self._refresh_wallet_status()
+            QMessageBox.information(
+                self,
+                "Wallet",
+                "Session attached (public address only). "
+                "Signing stays in the external wallet; DEX remains dry-run "
+                "unless live+broadcast flags and broadcast_fn are set.",
+            )
+        except Exception as exc:
+            QMessageBox.warning(self, "Wallet", str(exc))
+
+    def _wallet_complete_connect(self) -> None:
+        provider = self.wallet_provider_combo.currentText()
+        chain_key = self._wallet_selected_chain_key()
+        address = self.wallet_address_edit.text().strip()
+        try:
+            self._wallet.complete(
+                provider,
+                address=address,
+                chain_key=chain_key,
+                offer=self._pending_offer,
+            )
+            if self.settings_manager:
+                self.settings_manager.set("wallet_provider", provider)
+                self.settings_manager.set("wallet_chain", chain_key)
+                self.settings_manager.set("wallet_address", address)
+            self._refresh_wallet_status()
+            QMessageBox.information(self, "Wallet", "Wallet session completed.")
+        except Exception as exc:
+            QMessageBox.warning(self, "Wallet", str(exc))
+
+    def _wallet_disconnect(self) -> None:
+        self._wallet.disconnect()
+        self._pending_offer = None
+        self.wallet_uri_view.clear()
+        if self.settings_manager:
+            self.settings_manager.set("wallet_address", "")
+        self._refresh_wallet_status()
         
     def load_settings(self):
         """Load settings from settings manager."""
@@ -430,6 +591,33 @@ class SettingsDialog(QDialog):
         self.telegram_notifications_checkbox.setChecked(self.settings_manager.get('telegram_notifications', False))
         self.discord_webhook_url_edit.setText(self.settings_manager.get('discord_webhook_url', ''))
         self.discord_notifications_checkbox.setChecked(self.settings_manager.get('discord_notifications', False))
+
+        # Wallet (public address / provider / chain only — never keys)
+        if hasattr(self, "wallet_provider_combo"):
+            saved_provider = self.settings_manager.get("wallet_provider", "metamask")
+            idx = self.wallet_provider_combo.findText(saved_provider)
+            if idx >= 0:
+                self.wallet_provider_combo.setCurrentIndex(idx)
+            saved_chain = self.settings_manager.get("wallet_chain", "ethereum")
+            for i in range(self.wallet_chain_combo.count()):
+                if self.wallet_chain_combo.itemData(i) == saved_chain:
+                    self.wallet_chain_combo.setCurrentIndex(i)
+                    break
+            saved_addr = self.settings_manager.get("wallet_address", "")
+            if saved_addr and not saved_addr.startswith("0x") and " " in saved_addr:
+                # Refuse anything that looks like a mnemonic left in settings.
+                saved_addr = ""
+            self.wallet_address_edit.setText(saved_addr)
+            if saved_addr:
+                try:
+                    self._wallet.attach_address(
+                        self.wallet_provider_combo.currentText(),
+                        saved_addr,
+                        chain_key=self._wallet_selected_chain_key(),
+                    )
+                except Exception:
+                    pass
+            self._refresh_wallet_status()
         
     def save_settings(self):
         """Save settings to settings manager."""
@@ -466,6 +654,24 @@ class SettingsDialog(QDialog):
             self.settings_manager.set('broker_mode', broker_mode)
             self.settings_manager.set('mt4_host', self.mt4_host_edit.text())
             self.settings_manager.set('mt4_port', self.mt4_port_spin.value())
+
+            # Wallet (public address / provider / chain only — never keys)
+            if hasattr(self, "wallet_provider_combo"):
+                self.settings_manager.set(
+                    "wallet_provider", self.wallet_provider_combo.currentText()
+                )
+                self.settings_manager.set(
+                    "wallet_chain", self._wallet_selected_chain_key()
+                )
+                addr = self.wallet_address_edit.text().strip()
+                if addr and " " in addr and len(addr.split()) >= 12:
+                    QMessageBox.warning(
+                        self,
+                        "Wallet",
+                        "Seed phrases are not saved. Enter a public address only.",
+                    )
+                    return
+                self.settings_manager.set("wallet_address", addr)
             
             # REST API settings
             self.settings_manager.set('rest_api_key', self.rest_api_key_edit.text())

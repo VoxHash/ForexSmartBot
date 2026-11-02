@@ -8,7 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Roadmap (next phase)**: Polymarket categories + LP Farming / Liquidity Rewards; crypto wallet connect (WalletConnect / extension, no keys in repo); marketplace strategy packs via GitHub PR → remote index/releases (download without app update) — see `ROADMAP.md`
+- **Roadmap (next phase)**: Polymarket categories + LP Farming / Liquidity Rewards; marketplace strategy packs via GitHub PR → remote index/releases (download without app update) — see `ROADMAP.md`
+
+## [3.4.6] - 2026-11-01
+
+### Added
+- **Crypto wallet connect (first slice)**: `forexsmartbot.wallet` — MetaMask via WalletConnect v2 URI + MetaMask deep link (desktop PyQt); Phantom Solana universal-link scaffold; mock connector for tests
+- **Chain registry**: Ethereum, Base, OP, Arbitrum One, Polygon, BNB, Avalanche, **Robinhood Chain** (`4663` / testnet `46630`), Arc, Sepolia/Base Sepolia; Solana `mainnet-beta` / `devnet` / `testnet` (EVM vs Solana split)
+- **Settings → Wallet**: connect/disconnect, begin URI, attach/complete public address, show session address + chain
+- **DEX wiring**: session public address fed to `OneInchDexBroker`; `make_broadcast_fn` refuses send without injected signer (never forces live broadcast)
+- **Tests**: `tests/test_wallet_connect.py` (mocked — no mainnet spends)
+- **Docs**: `docs/V3.4.6_FEATURES.md`; ROADMAP wallet section phased with accurate chain/wallet status
+
+### Changed
+- **Version**: Package/app bumped to **3.4.6**
+
+### Security
+- Seed phrases / private keys rejected in connect path; WC pairing symKey stays in process RAM only; optional settings store **public address only**
 - **Linux desktop launcher**: FreeDesktop template + installer (`packaging/forexsmartbot.desktop`, `packaging/install-desktop.sh`) for Glytherra Studio / KDE / GNOME menus (`Office;Finance;`, Favorites pin)
 - **App icon kit**: Unique ForexSmartBot / VoxHash SVG master (`assets/icons/forexsmartbot.svg`) rendered to PNG sizes + multi-res `forexsmartbot_256.ico` (palette `#0B0F14` / `#3D9CF0` / `#26C281`); packaged under `forexsmartbot/assets/icons/` for wheel/sdist
 
