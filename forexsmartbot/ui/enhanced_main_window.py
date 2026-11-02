@@ -10,7 +10,8 @@ from PyQt6.QtWidgets import (
     QGroupBox, QFormLayout, QCheckBox, QMessageBox, QStatusBar,
     QProgressBar, QSplitter, QDialog, QFrame, QScrollArea,
     QSpinBox, QSlider, QToolBar, QMenuBar, QMenu, QListWidget,
-    QListWidgetItem, QAbstractItemView, QApplication, QTabWidget
+    QListWidgetItem, QAbstractItemView, QApplication, QTabWidget,
+    QSizePolicy,
 )
 from PyQt6.QtCore import QTimer, Qt, pyqtSignal, QThread, QMutex
 from PyQt6.QtGui import QFont, QPixmap, QIcon, QAction, QPalette, QColor
@@ -33,7 +34,7 @@ from .settings_dialog import SettingsDialog
 from .backtest_dialog import BacktestDialog
 from .export_dialog import ExportDialog
 from .theme import ThemeManager
-from .shell import NavRail, SessionBar
+from .shell import FlexScrollArea, NavRail, SessionBar
 from ..services.notification_service import NotificationService
 from ..services.startup_manager import StartupManager
 from ..services.language_manager import LanguageManager
@@ -675,9 +676,10 @@ class EnhancedMainWindow(QMainWindow):
         # Initialize components
         self.settings_manager = SettingsManager()
         
-        # Load window size from settings
+        # Load window size from settings; keep a small usable floor, no max
         window_width = self.settings_manager.get('window_width', 1400)
         window_height = self.settings_manager.get('window_height', 900)
+        self.setMinimumSize(720, 480)
         self.setGeometry(100, 100, window_width, window_height)
         self.database_manager = DatabaseManager()
         self.log_manager = LogManager()
@@ -768,11 +770,9 @@ class EnhancedMainWindow(QMainWindow):
         self.nav_rail.navigated.connect(self.navigate_to)
         body_layout.addWidget(self.nav_rail)
 
-        # Desk sidebar — strategy / status / controls (always available)
+        # Desk sidebar — scrollable so dense controls never block window shrink
         left_panel = QWidget()
         left_panel.setObjectName("ShellDeskPanel")
-        left_panel.setMaximumWidth(360)
-        left_panel.setMinimumWidth(280)
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(10, 10, 10, 10)
         left_layout.setSpacing(8)
@@ -790,11 +790,24 @@ class EnhancedMainWindow(QMainWindow):
         left_layout.addWidget(self.trading_controls_widget)
 
         left_layout.addStretch()
-        body_layout.addWidget(left_panel)
+
+        desk_scroll = FlexScrollArea(min_width=160, min_height=0)
+        desk_scroll.setObjectName("ShellDeskScroll")
+        desk_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        desk_scroll.setMinimumWidth(160)
+        desk_scroll.setMaximumWidth(360)
+        desk_scroll.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
+        )
+        desk_scroll.setWidget(left_panel)
+        body_layout.addWidget(desk_scroll)
 
         # Content stage (tabs driven by nav; tab bar hidden for shell rhythm)
         right_panel = QFrame()
         right_panel.setObjectName("ShellContentStage")
+        right_panel.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(12, 12, 12, 8)
         right_layout.setSpacing(8)
@@ -806,6 +819,9 @@ class EnhancedMainWindow(QMainWindow):
 
         self.features_tabs = QTabWidget()
         self.features_tabs.tabBar().hide()
+        self.features_tabs.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
         # Tab 1: Trading (Positions and Log)
         trading_tab = QWidget()
@@ -926,8 +942,12 @@ class EnhancedMainWindow(QMainWindow):
 
         self.features_tabs.addTab(cloud_tab, self.language_manager.tr("cloud", "Cloud"))
 
-        right_layout.addWidget(self.features_tabs)
-        body_layout.addWidget(right_panel, stretch=1)
+        right_layout.addWidget(self.features_tabs, stretch=1)
+
+        stage_scroll = FlexScrollArea(min_width=200, min_height=120)
+        stage_scroll.setObjectName("ShellStageScroll")
+        stage_scroll.setWidget(right_panel)
+        body_layout.addWidget(stage_scroll, stretch=1)
 
         root_layout.addWidget(body, stretch=1)
 

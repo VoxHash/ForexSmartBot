@@ -105,3 +105,47 @@ def test_enhanced_main_window_launches(qapp):
     finally:
         window.close()
         window.deleteLater()
+
+
+def test_enhanced_main_window_resizes_freely(qapp):
+    """Window must accept small and large sizes without crashing or a large floor."""
+    from forexsmartbot.ui.enhanced_main_window import EnhancedMainWindow
+
+    window = EnhancedMainWindow()
+    try:
+        assert window.minimumWidth() <= 800
+        assert window.minimumHeight() <= 500
+        assert window.maximumWidth() >= 100000
+        assert window.maximumHeight() >= 100000
+        # Layout must not advertise a desktop-blocking minimum
+        assert window.minimumSizeHint().width() <= 800
+        assert window.minimumSizeHint().height() <= 500
+
+        for width, height in ((720, 480), (800, 500), (1280, 720), (1920, 1080)):
+            window.resize(width, height)
+            qapp.processEvents()
+            assert window.width() == width
+            assert window.height() == height
+    finally:
+        window.close()
+        window.deleteLater()
+
+
+def test_legacy_main_window_resizes_freely(qapp):
+    """Legacy MainWindow also keeps a small usable minimum and accepts resize."""
+    from forexsmartbot.ui.main_window import MainWindow
+
+    window = MainWindow()
+    try:
+        assert window.minimumWidth() <= 800
+        assert window.minimumHeight() <= 500
+        window.resize(800, 500)
+        qapp.processEvents()
+        assert window.width() == 800
+        assert window.height() == 500
+        window.resize(1600, 900)
+        qapp.processEvents()
+        assert window.width() == 1600
+    finally:
+        window.close()
+        window.deleteLater()

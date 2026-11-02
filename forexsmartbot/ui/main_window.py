@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QDoubleSpinBox, QSpinBox, QTextEdit, QTabWidget,
                              QTableWidget, QTableWidgetItem, QHeaderView,
                              QGroupBox, QFormLayout, QCheckBox, QMessageBox,
-                             QStatusBar, QProgressBar, QSplitter, QDialog)
+                             QStatusBar, QProgressBar, QSplitter, QDialog,
+                             QSizePolicy)
 from PyQt6.QtCore import QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 import pandas as pd
@@ -22,6 +23,7 @@ from ..adapters.brokers import PaperBroker, MT4Broker, RestBroker
 from ..adapters.data import YFinanceProvider, CSVProvider
 from .settings_dialog import SettingsDialog
 from .charts import ChartWidget
+from .shell import FlexScrollArea
 from .theme import ThemeManager
 
 
@@ -31,6 +33,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ForexSmartBot - Professional Trading System")
+        self.setMinimumSize(720, 480)
         self.setGeometry(100, 100, 1400, 900)
         
         # Initialize services
@@ -76,7 +79,7 @@ class MainWindow(QMainWindow):
         # Main layout
         main_layout = QVBoxLayout(central_widget)
         
-        # Top controls
+        # Top controls (horizontally scrollable so dense toolbar never blocks shrink)
         self.create_controls_panel(main_layout)
         
         # Status bar
@@ -84,17 +87,22 @@ class MainWindow(QMainWindow):
         
         # Main content area
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        main_layout.addWidget(splitter)
+        splitter.setChildrenCollapsible(True)
+        main_layout.addWidget(splitter, stretch=1)
         
         # Left panel - controls and log
         left_panel = self.create_left_panel()
+        left_panel.setMinimumWidth(0)
         splitter.addWidget(left_panel)
         
         # Right panel - charts and positions
         right_panel = self.create_right_panel()
+        right_panel.setMinimumWidth(0)
         splitter.addWidget(right_panel)
         
-        # Set splitter proportions
+        # Set splitter proportions; content stage flexes
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
         splitter.setSizes([400, 1000])
         
     def create_controls_panel(self, parent_layout):
@@ -155,8 +163,15 @@ class MainWindow(QMainWindow):
         self.export_button = QPushButton("Export Trades")
         self.export_button.clicked.connect(self.export_trades)
         controls_layout.addWidget(self.export_button)
-        
-        parent_layout.addWidget(controls_group)
+
+        controls_scroll = FlexScrollArea(min_width=0, min_height=0)
+        controls_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        controls_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        controls_scroll.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        controls_scroll.setWidget(controls_group)
+        parent_layout.addWidget(controls_scroll)
         
     def create_status_bar(self):
         """Create the status bar."""

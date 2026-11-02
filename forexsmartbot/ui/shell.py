@@ -13,16 +13,39 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Sequence, Tuple
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
+
+
+class FlexScrollArea(QScrollArea):
+    """Scroll area that does not force the window to honor child minimum sizes."""
+
+    def __init__(
+        self,
+        parent: Optional[QWidget] = None,
+        *,
+        min_width: int = 0,
+        min_height: int = 0,
+    ):
+        super().__init__(parent)
+        self._floor = QSize(min_width, min_height)
+        self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(self._floor)
 
 
 @dataclass(frozen=True)
@@ -190,8 +213,7 @@ def build_app_stylesheet(colors: ShellColors = COLORS) -> str:
     QFrame#ShellSessionBar {{
         background-color: {c.elevated};
         border-top: 1px solid {c.border};
-        min-height: 56px;
-        max-height: 64px;
+        min-height: 48px;
     }}
     QFrame#ShellContentStage {{
         background-color: {c.bg};
@@ -307,7 +329,20 @@ class SessionBar(QFrame):
         self.setObjectName("ShellSessionBar")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        root = QHBoxLayout(self)
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Horizontal scroll so dense metrics never block window shrinking
+        scroll = FlexScrollArea(min_width=0, min_height=48)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+
+        metrics = QWidget()
+        root = QHBoxLayout(metrics)
         root.setContentsMargins(16, 8, 16, 8)
         root.setSpacing(20)
 
@@ -324,6 +359,15 @@ class SessionBar(QFrame):
         self.hint = QLabel("Desk ready")
         self.hint.setStyleSheet(f"color: {COLORS.muted}; font-size: 11px;")
         root.addWidget(self.hint)
+
+        scroll.setWidget(metrics)
+        outer.addWidget(scroll)
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(0, 48)
+
+    def sizeHint(self) -> QSize:
+        return QSize(800, 56)
 
     def _add_metric(self, layout: QHBoxLayout, label: str, initial: str) -> QLabel:
         col = QVBoxLayout()

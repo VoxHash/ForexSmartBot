@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **License**: Relicensed to **GPL-3.0-or-later** (official GPLv3 text); aligned with PyQt6 GPL-3 dependency and bundled desktop distribution. README badge, `pyproject.toml`, SECURITY, and related metadata synced. Donation addresses moved to SUPPORT.md.
 
 ### Fixed
+- **Free window resize**: Desktop shell no longer blocks shrinking (desk/session size hints were ~1210×947); flex scroll areas, 720×480 minimum, no max size — nav rail stays fixed width, content stage flexes
 - Missing PyInstaller Windows icon path (`assets/icons/forexsmartbot_256.ico`); icons now included via setuptools `package-data`
 - LICENSE was labeled MIT but appended non-OSI “additional terms”; replaced with clean GPL-3.0-or-later 
 
