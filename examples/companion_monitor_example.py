@@ -24,7 +24,7 @@ def main() -> None:
 
     monitor = RemoteMonitorServer(
         host="127.0.0.1",
-        port=int(os.getenv("REMOTE_MONITOR_PORT", "8080")),
+        port=int(os.getenv("REMOTE_MONITOR_PORT", "18780")),
         api_key=api_key,
         strategy_monitor=strategies,
         enable_companion=True,

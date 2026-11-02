@@ -12,4 +12,4 @@ Terminal=false
 Categories=Office;Finance;
 Keywords=forex;crypto;cex;dex;binance;kraken;1inch;trading;bot;finance;mt4;mt5;
 StartupNotify=true
-StartupWMClass=ForexSmartBot
+StartupWMClass=forexsmartbot

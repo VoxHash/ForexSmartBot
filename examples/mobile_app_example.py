@@ -44,7 +44,7 @@ def main() -> None:
     print("Companion health: GET /api/v1/companion/health")
     print("Companion portfolio (auth): GET /api/v1/companion/portfolio")
     print(f"API key: {api_key}")
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    app.run(host="127.0.0.1", port=int(os.getenv("API_PORT", "18750")), debug=False)
 
 
 if __name__ == "__main__":

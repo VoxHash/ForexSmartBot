@@ -3,21 +3,26 @@
 import logging
 import os
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
-from forexsmartbot import __version__
 from forexsmartbot.assets import resolve_app_icon
+from forexsmartbot.desktop_identity import APP_NAME, configure_qt_identity
 from forexsmartbot.ui.enhanced_main_window import EnhancedMainWindow
+
+_LOG_DIR = Path.home() / ".forexsmartbot"
+_LOG_DIR.mkdir(exist_ok=True)
+_LOG_FILE = _LOG_DIR / "forexsmartbot.log"
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("forexsmartbot.log"),
+        logging.FileHandler(_LOG_FILE),
         logging.StreamHandler(),
     ],
 )
@@ -31,10 +36,10 @@ def main():
         load_dotenv()
         logger.info("Starting ForexSmartBot application...")
 
+        # Before QApplication: unique Wayland app_id / WM_CLASS (not python3).
+        configure_qt_identity()
+
         app = QApplication(sys.argv)
-        app.setApplicationName("ForexSmartBot")
-        app.setApplicationVersion(__version__)
-        app.setOrganizationName("VoxHash")
 
         try:
             app.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
@@ -64,7 +69,7 @@ def main():
                 QMessageBox.critical(
                     None,
                     "Application Error",
-                    f"Failed to start ForexSmartBot:\n\n{str(e)}",
+                    f"Failed to start {APP_NAME}:\n\n{str(e)}",
                 )
         except Exception as display_error:
             print(f"Critical error: {e}")

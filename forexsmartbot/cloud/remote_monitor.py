@@ -50,7 +50,7 @@ class RemoteMonitorServer:
 
         Args:
             host: Server host address (defaults to REMOTE_MONITOR_HOST env var or 127.0.0.1)
-            port: Server port (defaults to REMOTE_MONITOR_PORT env var or 8080)
+            port: Server port (defaults to REMOTE_MONITOR_PORT env var or 18780)
             api_key: API key for authentication (defaults to API_KEY env var)
             max_alerts: Ring-buffer size for recent alerts
             require_api_key: Force auth even on localhost when True
@@ -58,7 +58,7 @@ class RemoteMonitorServer:
             enable_companion: Mount read-only /api/v1/companion/* routes
         """
         self.host = host or os.getenv("REMOTE_MONITOR_HOST", "127.0.0.1")
-        self.port = port or int(os.getenv("REMOTE_MONITOR_PORT", "8080"))
+        self.port = port or int(os.getenv("REMOTE_MONITOR_PORT", "18780"))
         self.api_key = resolve_api_key(api_key, env_names=("API_KEY", "REMOTE_MONITOR_API_KEY"))
         if require_api_key is None:
             require_api_key = not is_insecure_secret(self.api_key)
@@ -406,7 +406,7 @@ class RemoteMonitorServer:
         <div class="status-card">
             <h2>Multi-Host Monitors</h2>
             <p style="color:#aaa;">Poll additional remote-monitor hosts (browser-side). Keys stay in this browser session only.</p>
-            <input id="remote-host-url" type="text" placeholder="https://host:8080" style="width:360px;" />
+            <input id="remote-host-url" type="text" placeholder="https://host:18780" style="width:360px;" />
             <input id="remote-host-key" type="password" placeholder="API key (optional)" style="width:200px;" />
             <button class="btn" onclick="addRemoteHost()">Add host</button>
             <button class="btn" onclick="refreshRemoteHosts()">Refresh</button>

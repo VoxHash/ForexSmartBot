@@ -49,7 +49,7 @@ class APIServer:
             secret_key: Secret key for JWT tokens (defaults to API_SECRET_KEY env var)
         """
         self.host = host or os.getenv('API_HOST', '127.0.0.1')
-        self.port = port or int(os.getenv('API_PORT', '5000'))
+        self.port = port or int(os.getenv('API_PORT', '18750'))
         self.api_key = resolve_api_key(api_key, env_names=('API_KEY',))
         self.secret_key = secret_key or os.getenv('API_SECRET_KEY', '')
         

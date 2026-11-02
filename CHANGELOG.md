@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Desktop isolation (KDE/Wayland)**: Qt no longer inherits generic `python3` WM class / app_id, so ForexSmartBot is no longer grouped with sibling VoxHash Python GUIs (closing one no longer closes the others). Sets unique `setDesktopFileName(forexsmartbot)`, org domain `forexsmartbot.voxhash.dev`, and `StartupWMClass=forexsmartbot` before `QApplication`.
+- **Companion/API default ports**: Remote monitor default `18780` (was `8080`); API default `18750` (was `5000`) to avoid collisions with sibling tools / common local services.
+- **Log path**: File log writes to `~/.forexsmartbot/forexsmartbot.log` (alongside settings) instead of CWD.
+
 ### Added
 - **Roadmap (next phase)**: Polymarket categories + LP Farming / Liquidity Rewards; marketplace strategy packs via GitHub PR → remote index/releases (download without app update) — see `ROADMAP.md`
+- **Tests**: `tests/test_desktop_identity.py` guards unique app/desktop identifiers vs sibling projects
 
 ## [3.4.6] - 2026-11-01
 

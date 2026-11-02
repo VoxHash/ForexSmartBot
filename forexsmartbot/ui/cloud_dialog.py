@@ -156,7 +156,7 @@ class CloudDialog(QDialog):
         layout.addWidget(info_label)
         
         monitor_host = os.getenv('REMOTE_MONITOR_HOST', '127.0.0.1')
-        monitor_port = os.getenv('REMOTE_MONITOR_PORT', '8080')
+        monitor_port = os.getenv('REMOTE_MONITOR_PORT', '18780')
         dashboard_url = f"http://{monitor_host}:{monitor_port}"
         
         url_group = QGroupBox("Dashboard Access")
@@ -232,7 +232,7 @@ class CloudDialog(QDialog):
         layout.addWidget(info_label)
         
         api_host = os.getenv('API_HOST', '127.0.0.1')
-        api_port = os.getenv('API_PORT', '5000')
+        api_port = os.getenv('API_PORT', '18750')
         ws_host = os.getenv('WS_HOST', '127.0.0.1')
         ws_port = os.getenv('WS_PORT', '8765')
         

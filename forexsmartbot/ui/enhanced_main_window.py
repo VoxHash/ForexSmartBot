@@ -927,9 +927,9 @@ class EnhancedMainWindow(QMainWindow):
         from dotenv import load_dotenv
         load_dotenv(override=False)
         monitor_host = os.getenv('REMOTE_MONITOR_HOST', '127.0.0.1')
-        monitor_port = os.getenv('REMOTE_MONITOR_PORT', '8080')
+        monitor_port = os.getenv('REMOTE_MONITOR_PORT', '18780')
         api_host = os.getenv('API_HOST', '127.0.0.1')
-        api_port = os.getenv('API_PORT', '5000')
+        api_port = os.getenv('API_PORT', '18750')
 
         cloud_info = QLabel(self.language_manager.tr("cloud_info",
             f"Cloud Sync: Synchronize settings and data across devices\n"
