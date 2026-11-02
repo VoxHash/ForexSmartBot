@@ -68,9 +68,60 @@ Opsec (required for this milestone):
 
 Related existing work to reuse: `docs/EXTENDING_BROKERS.md`, paper broker, REST broker scaffold, remote-monitor auth hardening.
 
+## Future — Polymarket prediction markets + LP / liquidity rewards
+**Brand note:** product name stays **ForexSmartBot**; this extends the multi-venue desk (FX + CEX/DEX already in 3.4.x) toward prediction-market venues. Desktop bot remains the execution host behind the same `IBroker` / adapter pattern.
+
+**Geo / legal flags (not legal advice):** Polymarket availability, KYC, and permitted categories (Politics, Sports, Crypto, etc.) vary by jurisdiction and change over time. Ship geo/eligibility checks as product flags and document user responsibility; do not treat roadmap checkboxes as permission to offer the product everywhere. Prefer official public docs / test surfaces first.
+
+Phased delivery (realistic order):
+- [ ] **Research**: Map Polymarket public API / CLOB / Gamma (or successor) coverage for **Politics, Sports, Crypto**, and other listed categories; document order types, settlement, fee model, geo/KYC gates, and rate limits. Separate research notes for **LP Farming** and **Liquidity Rewards** (eligibility, claim flow, reward token, risk of impermanent loss / reward clawback).
+- [ ] **Adapters (read-only / public)**: Thin Polymarket market + order-book adapter behind Settings venue mode; list markets by category; no keys or wallet secrets in repo; PyQt stays on the host.
+- [ ] **Paper / sandbox**: Local or documented test/sandbox path for quote + simulated fills against live or recorded Polymarket books; refuse mainnet spends without opt-in.
+- [ ] **Live (opt-in)**: Authenticated Polymarket trading only with explicit live flags (same spirit as `FSB_LIVE_TRADING` / DEX double opt-in); kill-switch reuse; mocked CI — no CI mainnet orders.
+- [ ] **LP Farming (opt-in)**: Research → adapter for position/LP entry-exit on supported Polymarket liquidity surfaces → paper/sandbox → live opt-in; document IL and reward volatility risks.
+- [ ] **Liquidity Rewards (opt-in)**: Claim / accrual adapter after research; dry-run first; live claim only with opt-in; never embed reward-claim private keys in the default path.
+
+Opsec (required for this milestone):
+- [ ] API keys, session tokens, and wallet material never committed; `.env` gitignored; `.env.example` placeholders only
+- [ ] Secrets not logged (reuse `forexsmartbot.venues.secrets` redaction)
+- [ ] Document geo/eligibility flags without claiming legal clearance for any region
+
+Related: multi-venue CEX/DEX section above; wallet-connect section below for e2e signing where Polymarket requires a wallet.
+
+## Future — Crypto wallet connect (e2e)
+Enable users to **connect crypto wallets** properly so Polymarket / DEX / rewards flows can complete end-to-end inside ForexSmartBot without shipping private keys in the repo.
+
+Phased delivery:
+- [ ] **Research**: Prefer **WalletConnect** and/or **browser-extension** patterns (injected provider); document supported chains, session lifecycle, disconnect, and how desktop PyQt hosts a connect UI (deep link / local bridge / embedded webview — pick one after research).
+- [ ] **Adapters**: Session connect/disconnect + address display; sign-message / typed-data hooks behind a narrow interface; **no private-key import UI and no default env-based signer** (align with 3.4.5 DEX `broadcast_fn` injection).
+- [ ] **Paper / sandbox**: Connect against test/demo WalletConnect project or mock provider; exercise quote → user-approve → simulated broadcast without mainnet value.
+- [ ] **Live (opt-in)**: Real WalletConnect / extension sessions only when live flags are set; user confirms each spend; kill-switch still blocks new orders; never log seed phrases or raw private keys.
+
+Opsec (required):
+- [ ] Private keys / mnemonics never stored in git, logs, or default config files
+- [ ] Prefer hardware-wallet / extension / WalletConnect remote signing over in-process key material
+- [ ] Document phishing risks (fake WC URIs) and recommend verifying dApp / project IDs from official docs
+
+## Future — Strategy marketplace via GitHub PR (remote packs)
+Update the **marketplace** so contributors **add strategies via GitHub PR**; after merge, other users can **download strategies without updating** their local installed ForexSmartBot app version.
+
+Phased delivery:
+- [ ] **Research**: Define strategy-pack manifest schema (id, version, entry module, min app version, checksum); map PR → CI → publish path (GitHub Releases and/or raw index on default branch); inventory current `marketplace/` listings vs remote index.
+- [ ] **Adapters / index client**: App fetches a **remote strategy pack index** (GitHub Releases assets and/or raw `marketplace` index URL); list / filter packs; download into a user data dir — **no app reinstall required** to get new merged strategies.
+- [ ] **Paper / sandbox**: Install a signed-or-checksummed sample pack from a test release; load in paper broker / backtest only; refuse execution if checksum fails.
+- [ ] **Live / opt-in publish path**: Document contributor flow (fork → PR → review → merge → automated release/index bump); optional maintainer signing key; users opt in to “remote marketplace” channel in Settings.
+- [ ] **Integrity (later)**: Versioned packs with **SHA-256 checksums** in the index; optional **signature** verification (maintainers’ key) as a follow-on checkbox once checksums ship.
+
+Opsec / trust:
+- [ ] Never execute arbitrary remote code without checksum (and later signature) verification + user consent
+- [ ] Sandbox imported strategies where feasible; document that community packs are not endorsed trading advice
+- [ ] CI on strategy PRs (lint / import / smoke backtest) before merge
+
+Related existing: local `marketplace/` listings; strategy registry; docs on extending strategies.
+
 ## Future
-- [ ] Social / copy trading and marketplace growth
-- [ ] Broader multi-asset coverage (equities; deeper commodities) where data providers allow — spot crypto / CEX / DEX already shipped in 3.4.x under the ForexSmartBot name
+- [ ] Social / copy trading (marketplace PR/download packs tracked in section above)
+- [ ] Broader multi-asset coverage (equities; deeper commodities) where data providers allow — spot crypto / CEX / DEX already shipped in 3.4.x under the ForexSmartBot name; Polymarket categories tracked above
 - [ ] Enterprise and compliance tooling (audit logs, role-based access)
 
 For historical goals, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and version feature docs under `docs/V3.*_FEATURES.md`.
