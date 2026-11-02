@@ -2,7 +2,7 @@
 
 ![PyPI version](https://img.shields.io/pypi/v/forexsmartbot.svg)
 ![Python Versions](https://img.shields.io/pypi/pyversions/forexsmartbot.svg)
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)
 ![PyQt6](https://img.shields.io/badge/PyQt6-6.7+-green.svg)
 
 
@@ -162,7 +162,11 @@ Please report vulnerabilities via [SECURITY.md](SECURITY.md).
 
 ## 📄 License
 
-This project is licensed under the terms in [LICENSE](LICENSE).
+This project is licensed under the **GNU General Public License v3.0 or later** ([SPDX: `GPL-3.0-or-later`](https://spdx.org/licenses/GPL-3.0-or-later.html)). See [LICENSE](LICENSE).
+
+Desktop builds depend on **PyQt6** (Riverbank GPL-3.0, unless you hold a commercial PyQt license). The GPL copyleft matches that dependency for source and bundled installers. Trademark rights in VoxHash / ForexSmartBot names and logos are not granted by the GPL.
+
+Not a lawyer / solicitor — professional review recommended before shipping a live-trading product.
 
 ## 🆘 Support
 

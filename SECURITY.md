@@ -14,6 +14,13 @@ We will respond within 48 hours and work with you to address the issue.
 
 For detailed security best practices, see [docs/SECURITY.md](docs/SECURITY.md).
 
+## License and distribution (opsec)
+
+- Project license: **GPL-3.0-or-later** (see [LICENSE](LICENSE)).
+- **PyQt6** on PyPI is GPL-3.0 (Riverbank); commercial PyQt is required only if you distribute under a GPL-incompatible license. Bundled desktop installers must preserve GPL notices and Corresponding Source obligations.
+- The GPL does **not** grant trademark rights to “VoxHash”, “ForexSmartBot”, or related marks.
+- Not a lawyer / solicitor — review recommended for live-trading distribution.
+
 ## Secrets and API keys (opsec)
 
 - Copy `.env.example` → `.env` locally. **Never commit `.env`** (gitignored).

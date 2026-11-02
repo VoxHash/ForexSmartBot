@@ -12,9 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Icon resolution**: Shared `forexsmartbot.assets.resolve_app_icon()` used by window, notifications, and Linux autostart `.desktop` (works for installed package, editable, and repo CWD)
+- **License**: Relicensed to **GPL-3.0-or-later** (official GPLv3 text); aligned with PyQt6 GPL-3 dependency and bundled desktop distribution. README badge, `pyproject.toml`, SECURITY, and related metadata synced. Donation addresses moved to SUPPORT.md.
 
 ### Fixed
-- Missing PyInstaller Windows icon path (`assets/icons/forexsmartbot_256.ico`); icons now included via setuptools `package-data` 
+- Missing PyInstaller Windows icon path (`assets/icons/forexsmartbot_256.ico`); icons now included via setuptools `package-data`
+- LICENSE was labeled MIT but appended non-OSI “additional terms”; replaced with clean GPL-3.0-or-later 
 
 ## [3.4.5] - 2026-10-26
 

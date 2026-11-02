@@ -7,13 +7,13 @@ name = "forexsmartbot"
 version = "3.4.5"
 description = "Professional forex trading bot with advanced risk management and strategy plugins"
 authors = [{name = "VoxHash", email = "contact@voxhash.dev"}]
-license = {text = "MIT"}
+license = {text = "GPL-3.0-or-later"}
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Financial and Insurance Industry",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",

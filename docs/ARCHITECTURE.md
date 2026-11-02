@@ -8,7 +8,7 @@ ForexSmartBot/
 ├── README.md                   # Project README
 ├── ROADMAP.md                  # Development roadmap
 ├── CHANGELOG.md                # Version changelog
-├── LICENSE                     # MIT License
+├── LICENSE                     # GPL-3.0-or-later
 ├── requirements.txt            # Python dependencies
 ├── pyproject.toml              # Project configuration
 │

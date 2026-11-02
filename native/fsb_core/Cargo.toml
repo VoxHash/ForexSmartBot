@@ -3,7 +3,7 @@ name = "fsb_core"
 version = "0.7.0"
 edition = "2021"
 description = "Native indicator and backtest helpers for ForexSmartBot (PyO3)"
-license = "MIT"
+license = "GPL-3.0-or-later"
 authors = ["VoxHash <contact@voxhash.dev>"]
 
 [lib]
