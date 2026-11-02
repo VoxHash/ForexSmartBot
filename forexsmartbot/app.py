@@ -10,6 +10,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from forexsmartbot import __version__
+from forexsmartbot.assets import resolve_app_icon
 from forexsmartbot.ui.enhanced_main_window import EnhancedMainWindow
 
 logging.basicConfig(
@@ -22,19 +23,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _icon_path() -> str:
-    """Resolve app icon from install/repo layouts without assuming CWD."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    candidates = [
-        os.path.join(here, "..", "assets", "icons", "forexsmartbot_256.png"),
-        os.path.join(os.getcwd(), "assets", "icons", "forexsmartbot_256.png"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            return path
-    return candidates[0]
 
 
 def main():
@@ -58,7 +46,7 @@ def main():
         except AttributeError:
             pass
 
-        icon_path = _icon_path()
+        icon_path = resolve_app_icon()
         if os.path.exists(icon_path):
             app.setWindowIcon(QIcon(icon_path))
 

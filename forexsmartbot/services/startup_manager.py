@@ -9,6 +9,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from forexsmartbot.assets import resolve_app_icon
+
 
 class StartupManager:
     """Manages application startup on different operating systems."""
@@ -168,12 +170,16 @@ class StartupManager:
         try:
             desktop_path = self.startup_path / f"{self.app_name.lower()}.desktop"
             
+            icon_path = resolve_app_icon()
+            if not os.path.exists(icon_path):
+                icon_path = self.app_name.lower()
+
             desktop_content = f"""[Desktop Entry]
 Type=Application
 Name={self.app_name}
 Comment=Automated Trading Platform
 Exec={app_path}
-Icon={self.app_name.lower()}
+Icon={icon_path}
 Terminal=false
 Hidden=false
 X-GNOME-Autostart-enabled=true

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="ForexSmartBot">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0B0F14"/>
+      <stop offset="100%" stop-color="#121A24"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#3D9CF0" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <!-- App squircle -->
+  <rect x="48" y="48" width="928" height="928" rx="208" ry="208" fill="url(#bg)"/>
+  <rect x="48" y="48" width="928" height="928" rx="208" ry="208" fill="none" stroke="#1C2733" stroke-width="8"/>
+
+  <g filter="url(#soft)">
+    <!-- Antenna -->
+    <line x1="512" y1="210" x2="512" y2="268" stroke="#8A97A8" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="512" cy="196" r="18" fill="#3D9CF0"/>
+
+    <!-- Robot head -->
+    <rect x="300" y="268" width="424" height="300" rx="72" ry="72" fill="#141C26" stroke="#9AA7B8" stroke-width="16" opacity="0.95"/>
+    <!-- Eyes -->
+    <circle cx="420" cy="390" r="36" fill="#26C281"/>
+    <circle cx="604" cy="390" r="36" fill="#3D9CF0"/>
+    <!-- Mouth -->
+    <line x1="456" y1="488" x2="568" y2="488" stroke="#8A97A8" stroke-width="14" stroke-linecap="round"/>
+  </g>
+
+  <!-- Candlesticks (body of bot / chart motif) -->
+  <!-- 1 green tall -->
+  <line x1="352" y1="560" x2="352" y2="780" stroke="#6B7785" stroke-width="10" stroke-linecap="round"/>
+  <rect x="322" y="600" width="60" height="140" rx="10" fill="#26C281"/>
+  <!-- 2 blue short -->
+  <line x1="432" y1="620" x2="432" y2="760" stroke="#6B7785" stroke-width="10" stroke-linecap="round"/>
+  <rect x="402" y="650" width="60" height="80" rx="10" fill="#3D9CF0"/>
+  <!-- 3 green tall -->
+  <line x1="512" y1="540" x2="512" y2="790" stroke="#6B7785" stroke-width="10" stroke-linecap="round"/>
+  <rect x="482" y="580" width="60" height="160" rx="10" fill="#26C281"/>
+  <!-- 4 blue short -->
+  <line x1="592" y1="630" x2="592" y2="770" stroke="#6B7785" stroke-width="10" stroke-linecap="round"/>
+  <rect x="562" y="660" width="60" height="80" rx="10" fill="#3D9CF0"/>
+  <!-- 5 green tall -->
+  <line x1="672" y1="570" x2="672" y2="785" stroke="#6B7785" stroke-width="10" stroke-linecap="round"/>
+  <rect x="642" y="610" width="60" height="140" rx="10" fill="#26C281"/>
+
+  <!-- Subtle status pill -->
+  <rect x="300" y="830" width="424" height="48" rx="24" ry="24" fill="none" stroke="#2A3644" stroke-width="8"/>
+</svg>

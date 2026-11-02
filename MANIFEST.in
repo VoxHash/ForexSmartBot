@@ -1,0 +1,4 @@
+recursive-include forexsmartbot/assets/icons *
+recursive-include forexsmartbot/languages *.json
+recursive-include assets/icons *
+include LICENSE README.md CHANGELOG.md

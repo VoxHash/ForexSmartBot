@@ -8,13 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- 
+- **App icon kit**: Unique ForexSmartBot / VoxHash SVG master (`assets/icons/forexsmartbot.svg`) rendered to PNG sizes + multi-res `forexsmartbot_256.ico` (palette `#0B0F14` / `#3D9CF0` / `#26C281`); packaged under `forexsmartbot/assets/icons/` for wheel/sdist
 
 ### Changed
-- 
+- **Icon resolution**: Shared `forexsmartbot.assets.resolve_app_icon()` used by window, notifications, and Linux autostart `.desktop` (works for installed package, editable, and repo CWD)
 
 ### Fixed
-- 
+- Missing PyInstaller Windows icon path (`assets/icons/forexsmartbot_256.ico`); icons now included via setuptools `package-data` 
 
 ## [3.4.5] - 2026-10-26
 

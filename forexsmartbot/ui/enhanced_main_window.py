@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QTimer, Qt, pyqtSignal, QThread, QMutex
 from PyQt6.QtGui import QFont, QPixmap, QIcon, QAction, QPalette, QColor
+import os
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -37,6 +38,7 @@ from ..services.notification_service import NotificationService
 from ..services.startup_manager import StartupManager
 from ..services.language_manager import LanguageManager
 from forexsmartbot import __version__
+from forexsmartbot.assets import resolve_app_icon
 
 
 class TradingStatusWidget(QWidget):
@@ -666,6 +668,9 @@ class EnhancedMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ForexSmartBot - Advanced Trading Platform")
+        _icon = resolve_app_icon()
+        if os.path.exists(_icon):
+            self.setWindowIcon(QIcon(_icon))
         
         # Initialize components
         self.settings_manager = SettingsManager()

@@ -14,6 +14,7 @@
 ## ✨ Features
 
 - **Modern Trading Desk UI (3.4.0)**: Left nav, content stage, and session strip (equity / P&L / connection) with VoxHash dark branding
+- **App icon**: Packaged window / notification / launcher icon (`assets/icons/forexsmartbot_256.png` + `.ico`) in VoxHash palette `#0B0F14` / `#3D9CF0` / `#26C281`
 - **Paper / sandbox venues (3.4.2)**: Venue Paper (live public prices + local fills) and Binance Spot Test Network sandbox orders
 - **Live opt-in (3.4.3–3.4.4)**: Binance + Kraken Spot mainnet via `FSB_LIVE_TRADING=1` + dedicated live keys; kill-switch reuses RiskEngine
 - **1inch DEX (3.4.5)**: Classic Swap quote + swap path with dry-run fills by default; on-chain broadcast double opt-in (`FSB_DEX_BROADCAST`)

@@ -10,6 +10,8 @@ from datetime import datetime
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QObject, pyqtSignal
 
+from forexsmartbot.assets import resolve_app_icon
+
 
 class NotificationService(QObject):
     """Service for handling notifications and alerts."""
@@ -104,8 +106,7 @@ class NotificationService(QObject):
             import win10toast
             toaster = win10toast.ToastNotifier()
             
-            # Check if icon exists and use absolute path
-            icon_path = os.path.join(os.getcwd(), "assets", "icons", "forexsmartbot_256.png")
+            icon_path = resolve_app_icon()
             if not os.path.exists(icon_path):
                 icon_path = None
                 
@@ -158,8 +159,7 @@ class NotificationService(QObject):
     def _show_linux_notification(self, title: str, message: str):
         """Show Linux notification."""
         try:
-            # Check if icon exists
-            icon_path = "assets/icons/forexsmartbot_256.png"
+            icon_path = resolve_app_icon()
             if not os.path.exists(icon_path):
                 icon_path = None
                 
