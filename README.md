@@ -74,6 +74,16 @@ pip install -r requirements.txt
 python app.py
 ```
 
+### Linux app menu (Favorites)
+
+After a local `.venv` install (`pip install -e .`), register the GUI in your desktop launcher:
+
+```bash
+./packaging/install-desktop.sh
+```
+
+Then open the app menu → **All Applications** or **Office**, find **ForexSmartBot**, and right-click **Add to Favorites** (or drag it onto Favorites).
+
 Optional TA-Lib / deep-learning / remote API stack:
 
 ```bash

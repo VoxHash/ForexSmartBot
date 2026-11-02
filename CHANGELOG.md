@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Linux desktop launcher**: FreeDesktop template + installer (`packaging/forexsmartbot.desktop`, `packaging/install-desktop.sh`) for Glytherra Studio / KDE / GNOME menus (`Office;Finance;`, Favorites pin)
 - **App icon kit**: Unique ForexSmartBot / VoxHash SVG master (`assets/icons/forexsmartbot.svg`) rendered to PNG sizes + multi-res `forexsmartbot_256.ico` (palette `#0B0F14` / `#3D9CF0` / `#26C281`); packaged under `forexsmartbot/assets/icons/` for wheel/sdist
 
 ### Changed

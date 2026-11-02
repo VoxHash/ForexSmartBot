@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=ForexSmartBot
+GenericName=Forex Trading Bot
+Comment=Automated Forex trading platform by VoxHash
+# Exec/Path are filled by packaging/install-desktop.sh (absolute paths to this checkout).
+Exec=@EXEC@
+Path=@PATH@
+Icon=forexsmartbot
+Terminal=false
+Categories=Office;Finance;
+Keywords=forex;trading;bot;finance;mt4;mt5;
+StartupNotify=true
+StartupWMClass=ForexSmartBot
